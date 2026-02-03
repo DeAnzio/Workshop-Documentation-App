@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # anzioworkshopapp
 
 A new Flutter project.
@@ -18,5 +18,4 @@ samples, guidance on mobile development, and a full API reference.
 =======
 # workshop-documentation-app
 Documentation App
->>>>>>> 8455649034604510644d9b5f740ecca0983f9fda
 # Workshop-Documentation-App
