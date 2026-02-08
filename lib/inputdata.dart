@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  runApp(const Inputdata());
-}
+
 
 class Inputdata extends StatelessWidget {
   const Inputdata({super.key});
@@ -11,7 +10,7 @@ class Inputdata extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Coba-Coba Flutter',
-      home: InputDataPelanggan(),
+      home: const InputDataPelanggan(),
     );
   }
 }
@@ -26,6 +25,8 @@ class InputDataPelanggan extends StatefulWidget {
 class _InputDataPelangganState extends State<InputDataPelanggan> {
   final _formKey = GlobalKey<FormState>();
   
+  SupabaseClient get _supabase => Supabase.instance.client;
+
   // Controllers untuk text field
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _nohpController = TextEditingController();
@@ -213,21 +214,10 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               
               // Button Submit
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     // Proses data jika validasi berhasil
-                    print('Nama: ${_namaController.text}');
-                    print('No HP: ${_nohpController.text}');
-                    print('Jenis Device: $_jenisDevice');
-                    print('Merek & Model: ${_merekModelController.text}');
-                    print('Password: ${_passwordController.text}');
-                    print('Service Type: $_serviceType');
-                    print('Catatan: ${_catatanController.text}');
-                    
-                    // Tampilkan pesan sukses
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Data berhasil disimpan!')),
-                    );
+                    await _simpanDataKeDatabse();
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -248,6 +238,44 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
         ),
       ),
     );
+  }
+  
+  // Fungsi untuk menyimpan data ke database
+  Future<void> _simpanDataKeDatabse() async {
+    try {
+      await _supabase
+          .from('CustomerData')
+          .insert({
+            'nama_pelanggan': _namaController.text,
+            'no_hp': _nohpController.text,
+            'jenis_device': _jenisDevice,
+            'merek_model': _merekModelController.text,
+            'service_type': _serviceType,
+            'catatan': _catatanController.text,
+            'password': _passwordController.text,
+          });
+      
+      // Tampilkan pesan sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data berhasil disimpan!')),
+      );
+      
+      // Clear form setelah berhasil
+      _namaController.clear();
+      _nohpController.clear();
+      _merekModelController.clear();
+      _passwordController.clear();
+      _catatanController.clear();
+      setState(() {
+        _jenisDevice = null;
+        _serviceType = null;
+      });
+    } catch (e) {
+      // Tampilkan pesan error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan data: $e')),
+      );
+    }
   }
   
   @override
