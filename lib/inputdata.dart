@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:anzioworkshopapp/services/supabase_service.dart';
 
 
 
@@ -9,6 +10,7 @@ class Inputdata extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Coba-Coba Flutter',
       home: const InputDataPelanggan(),
     );
@@ -243,6 +245,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   // Fungsi untuk menyimpan data ke database
   Future<void> _simpanDataKeDatabse() async {
     try {
+      // Resolve numeric technician id from authenticated session
+      final techId = await SupabaseService.getCurrentTechnicianId();
+
       await _supabase
           .from('CustomerData')
           .insert({
@@ -253,6 +258,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
             'service_type': _serviceType,
             'catatan': _catatanController.text,
             'password': _passwordController.text,
+            'id_technician': techId,
           });
       
       // Tampilkan pesan sukses
