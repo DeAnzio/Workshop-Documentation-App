@@ -4,8 +4,8 @@ import 'package:anzioworkshopapp/screens/main/login_page.dart';
 import 'package:anzioworkshopapp/screens/main/register_page.dart';
 import 'package:anzioworkshopapp/screens/main/menu_page.dart';
 import 'package:anzioworkshopapp/screens/main/history_page.dart';
+import 'package:anzioworkshopapp/screens/main/profile_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 
 String? _supabaseInitError;
 
@@ -42,12 +42,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Coba-Coba Flutter',
-      home: initError != null ? ErrorScreen(message: initError!) : const LoginPage(),
+      home: initError != null
+          ? ErrorScreen(message: initError!)
+          : const LoginPage(),
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/home': (context) => const HomeScaffold(),
         '/history': (context) => const HistoryPage(),
+        '/profile': (context) => const ProfilePage(),
       },
     );
   }
@@ -81,4 +84,3 @@ class ErrorScreen extends StatelessWidget {
     );
   }
 }
-

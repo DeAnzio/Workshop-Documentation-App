@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
-import 'package:anzioworkshopapp/screens/main/inputdata_page.dart';
+import 'package:anzioworkshopapp/screens/operation/inputdata_page.dart';
 
 
 class HomeScaffold extends StatelessWidget {
@@ -92,6 +92,13 @@ class HomeScaffold extends StatelessWidget {
                 Navigator.pushNamed(context, '/history');
               },
               child: const Text('History'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/profile');
+              },
+              child: const Text('Profile'),
             ),
           ],
         ),

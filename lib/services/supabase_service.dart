@@ -399,6 +399,28 @@ class SupabaseService {
     }
   }
 
+  /// Upload profile avatar to Supabase storage and return the public URL
+  static Future<String?> uploadProfileAvatar(
+    Uint8List imageBytes,
+    String fileName,
+  ) async {
+    try {
+      final filePath = 'avatars/$fileName';
+      await Supabase.instance.client.storage
+          .from('avatars') // Avatar bucket
+          .uploadBinary(filePath, imageBytes);
+
+      final publicUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (e) {
+      print('Upload profile avatar failed: $e');
+      return null;
+    }
+  }
+
   /// Insert photo record into service_photos table
   static Future<bool> insertServicePhoto(
     String serviceOrderId,
@@ -448,6 +470,42 @@ class SupabaseService {
     } catch (e) {
       print('Get service photos failed: $e');
       return [];
+    }
+  }
+
+  /// Update technician profile
+  static Future<bool> updateTechnicianProfile(
+    String technicianId, {
+    String? name,
+    String? phoneNumber,
+    String? profilePhotoUrl,
+    bool? securityEnabled,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+      if (name != null) updateData['name'] = name;
+      if (phoneNumber != null) updateData['no_hp'] = phoneNumber;
+      if (profilePhotoUrl != null) updateData['avatar_url'] = profilePhotoUrl;
+      //if (securityEnabled != null)
+        //updateData['security_enabled'] = securityEnabled;
+
+      final res = await Supabase.instance.client
+          .from('technicians')
+          .update(updateData)
+          .eq('id', technicianId);
+
+      try {
+        final map = res as Map<String, dynamic>;
+        if (map.containsKey('error') && map['error'] != null) {
+          print('Update technician profile error: ${map['error']}');
+          return false;
+        }
+      } catch (_) {}
+
+      return true;
+    } catch (e) {
+      print('Update technician profile failed: $e');
+      return false;
     }
   }
 }
