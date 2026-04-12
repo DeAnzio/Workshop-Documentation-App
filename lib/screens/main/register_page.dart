@@ -12,6 +12,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _loading = false;
 
   Future<void> _register() async {
@@ -19,10 +20,18 @@ class _RegisterPageState extends State<RegisterPage> {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields')));
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
+    if (password != confirmPassword) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       if (mounted) setState(() => _loading = false);
       return;
     }
@@ -45,6 +54,15 @@ class _RegisterPageState extends State<RegisterPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -72,8 +90,12 @@ class _RegisterPageState extends State<RegisterPage> {
               decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
-            const SizedBox(height: 20),
-            SizedBox(
+            const SizedBox(height: 20),            TextField(
+              controller: _confirmPasswordController,
+              decoration: const InputDecoration(labelText: 'Confirm Password'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 12),            SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _loading ? null : _register,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 
 
@@ -25,21 +27,31 @@ class InputDataPelanggan extends StatefulWidget {
 
 class _InputDataPelangganState extends State<InputDataPelanggan> {
   final _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
+  List<XFile> _selectedImages = [];
 
   // Controllers untuk text field
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _nohpController = TextEditingController();
+  final TextEditingController _alamatController = TextEditingController();
   final TextEditingController _merekModelController = TextEditingController();
+  final TextEditingController _serialNumberController = TextEditingController();
+  final TextEditingController _kondisiFisikController = TextEditingController();
+  final TextEditingController _kelengkapanController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _catatanController = TextEditingController();
+  final TextEditingController _estimasiBiayaController = TextEditingController();
+  final TextEditingController _nominalDpController = TextEditingController();
   
   // Variabel untuk dropdown
   String? _jenisDevice;
   String? _serviceType;
+  String? _prioritas;
   
   // List pilihan untuk dropdown
   final List<String> _jenisDeviceList = ['Laptop', 'PC', 'Smartphone', 'Tablet'];
   final List<String> _serviceTypeList = ['Instalasi', 'Perbaikan', 'Upgrade', 'Maintenance'];
+  final List<String> _prioritasList = ['normal', 'urgent', 'express'];
 
   @override
   Widget build(BuildContext context) {
@@ -98,10 +110,22 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 },
               ),
               const SizedBox(height: 16),
-              
-              // 3. Jenis Device (Dropdown)
+
+              // 3. Alamat
+              TextFormField(
+                controller: _alamatController,
+                decoration: const InputDecoration(
+                  labelText: 'Alamat',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_on),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // 4. Jenis Device (Dropdown)
               DropdownButtonFormField<String>(
-                value: _jenisDevice,
+                initialValue: _jenisDevice,
                 decoration: const InputDecoration(
                   labelText: 'Jenis Device',
                   border: OutlineInputBorder(),
@@ -144,24 +168,56 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               ),
               const SizedBox(height: 16),
               
-              // 5. Password Device
+              // 5. Serial Number
+              TextFormField(
+                controller: _serialNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'Serial Number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.confirmation_num),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 6. Kondisi Fisik
+              TextFormField(
+                controller: _kondisiFisikController,
+                decoration: const InputDecoration(
+                  labelText: 'Kondisi Fisik',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.build),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // 7. Kelengkapan
+              TextFormField(
+                controller: _kelengkapanController,
+                decoration: const InputDecoration(
+                  labelText: 'Kelengkapan',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.inventory),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // 8. Password/PIN Device
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
-                  labelText: 'Password Device',
+                  labelText: 'Password / PIN Device',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.lock),
                 ),
                 obscureText: true,
               ),
               const SizedBox(height: 16),
-              
-              // 6. Input Foto
+
+              // 9. Input Foto
               ElevatedButton.icon(
-                onPressed: () {
-                  // Fungsi untuk memilih foto
-                  print('Pilih foto');
-                },
+                onPressed: _pickImages,
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Upload Foto Device'),
                 style: ElevatedButton.styleFrom(
@@ -169,10 +225,57 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Display selected images
+              if (_selectedImages.isNotEmpty) ...[
+                const Text(
+                  'Foto yang dipilih:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedImages.length,
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(_selectedImages[index].path),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: -8,
+                            right: 0,
+                            child: IconButton(
+                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              onPressed: () => _removeImage(index),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               
-              // 7. Service Type (Dropdown)
+              // 10. Service Type (Dropdown)
               DropdownButtonFormField<String>(
-                value: _serviceType,
+                initialValue: _serviceType,
                 decoration: const InputDecoration(
                   labelText: 'Service Type',
                   border: OutlineInputBorder(),
@@ -197,12 +300,64 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 },
               ),
               const SizedBox(height: 16),
+
+              // 11. Prioritas (Dropdown)
+              DropdownButtonFormField<String>(
+                initialValue: _prioritas,
+                decoration: const InputDecoration(
+                  labelText: 'Prioritas',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.priority_high),
+                ),
+                items: _prioritasList.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _prioritas = newValue;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Prioritas harus dipilih';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // 12. Estimasi Biaya
+              TextFormField(
+                controller: _estimasiBiayaController,
+                decoration: const InputDecoration(
+                  labelText: 'Estimasi Biaya',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.payments),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+
+              // 13. Nominal DP
+              TextFormField(
+                controller: _nominalDpController,
+                decoration: const InputDecoration(
+                  labelText: 'Nominal DP',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.monetization_on),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
               
-              // 8. Catatan
+              // 14. Catatan / Keluhan
               TextFormField(
                 controller: _catatanController,
                 decoration: const InputDecoration(
-                  labelText: 'Catatan',
+                  labelText: 'Keluhan / Catatan',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.note),
                   alignLabelWithHint: true,
@@ -252,41 +407,54 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
         return;
       }
 
-      // Insert customer data
-      final success = await SupabaseService.insertCustomerData(
+      // Insert customer data and get service order ID
+      final serviceOrderId = await SupabaseService.insertCustomerData(
         namaPelanggan: _namaController.text,
         noHp: _nohpController.text,
+        alamat: _alamatController.text.isNotEmpty ? _alamatController.text : null,
         jenisDevice: _jenisDevice ?? '',
         merekModel: _merekModelController.text,
-        serviceType: _serviceType ?? '',
-        catatan: _catatanController.text,
+        serialNumber: _serialNumberController.text.isNotEmpty ? _serialNumberController.text : null,
+        kondisiFisik: _kondisiFisikController.text.isNotEmpty ? _kondisiFisikController.text : null,
+        kelengkapan: _kelengkapanController.text.isNotEmpty ? _kelengkapanController.text : null,
         password: _passwordController.text,
+        keluhan: _catatanController.text,
+        serviceType: _serviceType ?? '',
+        prioritas: _prioritas ?? 'normal',
+        estimasiBiaya: _estimasiBiayaController.text.isNotEmpty ? double.tryParse(_estimasiBiayaController.text) : null,
+        nominalDp: _nominalDpController.text.isNotEmpty ? double.tryParse(_nominalDpController.text) : null,
         technicianId: techId,
       );
 
-      if (!mounted) return;
-      
-      if (success) {
-        // Tampilkan pesan sukses
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data berhasil disimpan!')),
-        );
-        
-        // Clear form setelah berhasil
-        _namaController.clear();
-        _nohpController.clear();
-        _merekModelController.clear();
-        _passwordController.clear();
-        _catatanController.clear();
-        setState(() {
-          _jenisDevice = null;
-          _serviceType = null;
-        });
-      } else {
+      if (serviceOrderId == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal menyimpan data')),
         );
+        return;
       }
+
+      // Upload selected images
+      if (_selectedImages.isNotEmpty) {
+        for (var image in _selectedImages) {
+          final bytes = await image.readAsBytes();
+          final fileName = '${DateTime.now().millisecondsSinceEpoch}_${image.name}';
+          final photoUrl = await SupabaseService.uploadImage(bytes, fileName);
+          if (photoUrl != null) {
+            await SupabaseService.insertServicePhoto(serviceOrderId, photoUrl);
+          }
+        }
+      }
+
+      if (!mounted) return;
+      
+      // Tampilkan pesan sukses
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data berhasil disimpan!')),
+      );
+      
+      // Clear form setelah berhasil
+      _clearForm();
     } catch (e) {
       // Tampilkan pesan error
       if (!mounted) return;
@@ -300,9 +468,60 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   void dispose() {
     _namaController.dispose();
     _nohpController.dispose();
+    _alamatController.dispose();
     _merekModelController.dispose();
+    _serialNumberController.dispose();
+    _kondisiFisikController.dispose();
+    _kelengkapanController.dispose();
     _passwordController.dispose();
     _catatanController.dispose();
+    _estimasiBiayaController.dispose();
+    _nominalDpController.dispose();
     super.dispose();
+  }
+
+  // Fungsi untuk memilih foto dari galeri
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> images = await _picker.pickMultiImage();
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(images);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking images: $e')),
+      );
+    }
+  }
+
+  // Fungsi untuk menghapus foto yang dipilih
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  // Fungsi untuk clear semua form
+  void _clearForm() {
+    _namaController.clear();
+    _nohpController.clear();
+    _alamatController.clear();
+    _merekModelController.clear();
+    _serialNumberController.clear();
+    _kondisiFisikController.clear();
+    _kelengkapanController.clear();
+    _passwordController.clear();
+    _catatanController.clear();
+    _estimasiBiayaController.clear();
+    _nominalDpController.clear();
+    setState(() {
+      _jenisDevice = null;
+      _serviceType = null;
+      _prioritas = null;
+      _selectedImages.clear();
+    });
   }
 }

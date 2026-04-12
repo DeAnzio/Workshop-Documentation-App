@@ -29,7 +29,6 @@ class _HistoryPageState extends State<HistoryPage> {
     final valid = await SupabaseService.validateSession();
     if (!mounted) return;
     if (!valid) {
-      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
@@ -46,13 +45,15 @@ class _HistoryPageState extends State<HistoryPage> {
 
     try {
       final res = await Supabase.instance.client
-          .from('CustomerData')
-          .select()
-          .eq('id_technician', techId)
-          .order('id', ascending: false);
+          .from('service_orders')
+          .select('*, customers(*)')
+          .eq('technician_id', techId)
+          .order('tgl_masuk', ascending: false);
 
       final list = List<Map<String, dynamic>>.from(
-        (res as List<dynamic>).map((item) => Map<String, dynamic>.from(item as Map)),
+        (res as List<dynamic>).map(
+          (item) => Map<String, dynamic>.from(item as Map),
+        ),
       );
 
       setState(() {
@@ -77,52 +78,76 @@ class _HistoryPageState extends State<HistoryPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!))
-              : _history.isEmpty
-                  ? const Center(child: Text('Belum ada riwayat service.'))
-                  : RefreshIndicator(
-                      onRefresh: _loadHistory,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _history.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final item = _history[index];
-                          final nama = item['nama_pelanggan']?.toString() ?? '-';
-                          final jenis = item['jenis_device']?.toString() ?? '-';
-                          final merek = item['merek_model']?.toString() ?? '-';
-                          final service = item['service_type']?.toString() ?? '-';
-                          final noHp = item['no_hp']?.toString() ?? '-';
-                          final catatan = item['catatan']?.toString() ?? '';
+          ? Center(child: Text(_errorMessage!))
+          : _history.isEmpty
+          ? const Center(child: Text('Belum ada riwayat service.'))
+          : RefreshIndicator(
+              onRefresh: _loadHistory,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: _history.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final item = _history[index];
+                  final customerData = item['customers'];
+                  String nama = '-';
+                  String noHp = '-';
 
-                          return Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(nama, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 8),
-                                  Text('No. HP: $noHp'),
-                                  const SizedBox(height: 4),
-                                  Text('Device: $jenis'),
-                                  const SizedBox(height: 4),
-                                  Text('Merek/Model: $merek'),
-                                  const SizedBox(height: 4),
-                                  Text('Service: $service'),
-                                  if (catatan.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Text('Catatan: $catatan'),
-                                  ],
-                                ],
-                              ),
+                  if (customerData is Map<String, dynamic>) {
+                    nama = customerData['nama']?.toString() ?? '-';
+                    noHp = customerData['no_hp']?.toString() ?? '-';
+                  } else if (customerData is List && customerData.isNotEmpty) {
+                    final customer = Map<String, dynamic>.from(
+                      customerData.first as Map,
+                    );
+                    nama = customer['nama']?.toString() ?? '-';
+                    noHp = customer['no_hp']?.toString() ?? '-';
+                  }
+
+                  final ticket = item['nomor_tiket']?.toString() ?? '-';
+                  final jenis = item['jenis_perangkat']?.toString() ?? '-';
+                  final merek = item['merek_model']?.toString() ?? '-';
+                  final service = item['jenis_service']?.toString() ?? '-';
+                  final status = item['status_service']?.toString() ?? '-';
+                  final catatan = item['keluhan']?.toString() ?? '';
+                  final tglMasuk = item['tgl_masuk']?.toString() ?? '-';
+
+                  return Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ticket,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                          );
-                        },
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Nama: $nama'),
+                          Text('No. HP: $noHp'),
+                          Text('Device: $jenis'),
+                          Text('Merek/Model: $merek'),
+                          Text('Jenis Service: $service'),
+                          Text('Status: $status'),
+                          Text('Masuk: $tglMasuk'),
+                          if (catatan.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text('Keluhan: $catatan'),
+                          ],
+                        ],
                       ),
                     ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
