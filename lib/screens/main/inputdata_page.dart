@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
 
 
@@ -26,8 +25,6 @@ class InputDataPelanggan extends StatefulWidget {
 
 class _InputDataPelangganState extends State<InputDataPelanggan> {
   final _formKey = GlobalKey<FormState>();
-  
-  SupabaseClient get _supabase => Supabase.instance.client;
 
   // Controllers untuk text field
   final TextEditingController _namaController = TextEditingController();
@@ -245,39 +242,54 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   // Fungsi untuk menyimpan data ke database
   Future<void> _simpanDataKeDatabse() async {
     try {
-      // Resolve numeric technician id from authenticated session
+      // Get technician id from session
       final techId = await SupabaseService.getCurrentTechnicianId();
+      if (techId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: User not authenticated')),
+        );
+        return;
+      }
 
-      await _supabase
-          .from('CustomerData')
-          .insert({
-            'nama_pelanggan': _namaController.text,
-            'no_hp': _nohpController.text,
-            'jenis_device': _jenisDevice,
-            'merek_model': _merekModelController.text,
-            'service_type': _serviceType,
-            'catatan': _catatanController.text,
-            'password': _passwordController.text,
-            'id_technician': techId,
-          });
-      
-      // Tampilkan pesan sukses
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data berhasil disimpan!')),
+      // Insert customer data
+      final success = await SupabaseService.insertCustomerData(
+        namaPelanggan: _namaController.text,
+        noHp: _nohpController.text,
+        jenisDevice: _jenisDevice ?? '',
+        merekModel: _merekModelController.text,
+        serviceType: _serviceType ?? '',
+        catatan: _catatanController.text,
+        password: _passwordController.text,
+        technicianId: techId,
       );
+
+      if (!mounted) return;
       
-      // Clear form setelah berhasil
-      _namaController.clear();
-      _nohpController.clear();
-      _merekModelController.clear();
-      _passwordController.clear();
-      _catatanController.clear();
-      setState(() {
-        _jenisDevice = null;
-        _serviceType = null;
-      });
+      if (success) {
+        // Tampilkan pesan sukses
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data berhasil disimpan!')),
+        );
+        
+        // Clear form setelah berhasil
+        _namaController.clear();
+        _nohpController.clear();
+        _merekModelController.clear();
+        _passwordController.clear();
+        _catatanController.clear();
+        setState(() {
+          _jenisDevice = null;
+          _serviceType = null;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menyimpan data')),
+        );
+      }
     } catch (e) {
       // Tampilkan pesan error
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal menyimpan data: $e')),
       );

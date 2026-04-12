@@ -20,23 +20,27 @@ class _RegisterPageState extends State<RegisterPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields')));
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+
     try {
-      final ok = await SupabaseService.signUp(name, email, password);
-      if (ok) {
-        final created = await SupabaseService.createTechnician(name, email, password);
+      final created = await SupabaseService.createTechnician(name, email, password);
+      if (!mounted) return;
+      
+      if (created) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration successful!')));
+        await Future.delayed(const Duration(seconds: 1));
         if (!mounted) return;
-        if (created) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration successful. Check email to confirm if required.')));
-          await Future.delayed(const Duration(seconds: 2));
-          if (!mounted) return;
-          Navigator.pop(context);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration succeeded but saving profile failed.')));
-        }
+        Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration failed')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registration failed. Email might already exist.')));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);

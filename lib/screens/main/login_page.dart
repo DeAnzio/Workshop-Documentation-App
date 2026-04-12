@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
 
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -19,19 +20,16 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text;
 
     try {
-      final user = await SupabaseService.signIn(email, password);
-      if (user != null) {
-        // Attempt to fetch technician record (optional)
-        final tech = await SupabaseService.fetchTechnicianByEmail(email);
-        if (tech == null) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No technician profile found for this account.')));
-        }
+      final success = await SupabaseService.signIn(email, password);
+      if (success) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed')));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed: Invalid email or password')));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
