@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/screens/utils/moresecure_page.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
@@ -22,7 +23,6 @@ class _ProfilePageState extends State<ProfilePage> {
   // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  bool _securityEnabled = false;
   XFile? _selectedImage;
 
   @override
@@ -118,7 +118,6 @@ class _ProfilePageState extends State<ProfilePage> {
         name: _nameController.text,
         phoneNumber: _phoneController.text,
         profilePhotoUrl: photoUrl,
-        securityEnabled: _securityEnabled,
       );
 
       if (!success) {
@@ -182,9 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         backgroundImage: _selectedImage != null
                             ? FileImage(File(_selectedImage!.path))
                             : (_technicianData?['avatar_url'] != null
-                                  ? NetworkImage(
-                                      _technicianData!['avatar_url'],
-                                    )
+                                  ? NetworkImage(_technicianData!['avatar_url'])
                                   : null),
                         child:
                             _selectedImage == null &&
@@ -227,15 +224,22 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Security Toggle
-                    SwitchListTile(
-                      title: const Text('Aktifkan Fitur Pengamanan Tambahan'),
-                      value: _securityEnabled,
-                      onChanged: (value) {
-                        setState(() {
-                          _securityEnabled = value;
-                        });
-                      },
+                    Card(
+                      child: ListTile(
+                        title: const Text('Pengamanan Tambahan'),
+                        subtitle: const Text(
+                          'Atur PIN atau biometrik untuk masuk',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MoreSecurePage(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                     const SizedBox(height: 24),
 

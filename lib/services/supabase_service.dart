@@ -10,8 +10,10 @@ class SupabaseService {
   static const String _currentUserEmailKey = 'current_user_email';
   static const String _currentUserNameKey = 'current_user_name';
   static const String _sessionExpiryKey = 'session_expiry';
-
-  static const Duration _sessionDuration = Duration(hours: 2);
+  static const String _persistentLoginKey = 'persistent_login';
+  static const String _sessionExpiredKey = 'session_expired';
+  static const String _appLockRequiredKey = 'app_lock_required';
+  static const Duration _sessionDuration = Duration(minutes: 1);
 
   /// Get current logged-in user ID from local storage
   static Future<String?> get currentUserId async {
@@ -54,11 +56,35 @@ class SupabaseService {
     return DateTime.now().isBefore(expiry);
   }
 
+  /// Check if session has expired (but user still has persistent login)
+  static Future<bool> get isSessionExpired async {
+    final valid = await isSessionValid;
+    final persistent = await hasPersistentLogin;
+    return !valid && persistent;
+  }
+
+  /// Check if user has persistent login (was logged in before)
+  static Future<bool> get hasPersistentLogin async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_persistentLoginKey) ?? false;
+  }
+
+  /// Check if app lock is required after closing/backgrounding the app
+  static Future<bool> get isAppLockRequired async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_appLockRequiredKey) ?? false;
+  }
+
+  /// Set whether app lock is required
+  static Future<void> setAppLockRequired(bool required) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_appLockRequiredKey, required);
+  }
+
   /// Check if user is logged in and session has not expired
   static Future<bool> get isLoggedIn async {
     final valid = await isSessionValid;
     if (!valid) {
-      await signOut();
       return false;
     }
 
@@ -66,11 +92,43 @@ class SupabaseService {
     return prefs.containsKey(_currentUserIdKey);
   }
 
-  /// Make sure session is valid, otherwise clear it
+  /// Get technician ID without session validation (for re-authentication)
+  static Future<String?> getTechnicianIdWithoutSessionCheck() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_currentUserIdKey);
+  }
+
+  /// Refresh session expiry without clearing user data
+  static Future<void> refreshSession() async {
+    final expiry = DateTime.now().add(_sessionDuration);
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      _saveSessionExpiry(expiry),
+      prefs.setBool(_sessionExpiredKey, false),
+      prefs.setBool(_appLockRequiredKey, false),
+    ]);
+    print('Session refreshed, expires at $expiry');
+  }
+
+  /// Mark session as expired for verification
+  static Future<void> markSessionExpired() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_sessionExpiredKey, true);
+  }
+
+  /// Check if session is marked as expired
+  static Future<bool> checkSessionExpired() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_sessionExpiredKey) ?? false;
+  }
+
+  /// Make sure session is valid, otherwise mark for re-authentication
   static Future<bool> validateSession() async {
     final valid = await isSessionValid;
     if (!valid) {
-      await signOut();
+      // Don't signOut, just prepare for re-authentication
+      await markSessionExpired();
+      return false;
     }
     return valid;
   }
@@ -142,6 +200,9 @@ class SupabaseService {
         prefs.setString(_currentUserIdKey, userId),
         prefs.setString(_currentUserEmailKey, email),
         prefs.setString(_currentUserNameKey, userName),
+        prefs.setBool(_persistentLoginKey, true),
+        prefs.setBool(_sessionExpiredKey, false),
+        prefs.setBool(_appLockRequiredKey, false),
       ]);
       await _saveSessionExpiry(expiry);
 
@@ -153,7 +214,7 @@ class SupabaseService {
     }
   }
 
-  /// Logout - clear session from local storage
+  /// Logout - clear session and persistent login from local storage
   static Future<void> signOut() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -162,10 +223,28 @@ class SupabaseService {
         prefs.remove(_currentUserEmailKey),
         prefs.remove(_currentUserNameKey),
         prefs.remove(_sessionExpiryKey),
+        prefs.remove(_persistentLoginKey),
+        prefs.remove(_sessionExpiredKey),
+        prefs.remove(_appLockRequiredKey),
       ]);
       print('Logout successful');
     } catch (e) {
       print('Logout error: $e');
+    }
+  }
+
+  /// Clear session expiry but keep persistent login (for session timeout)
+  static Future<void> clearSessionOnly() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await Future.wait([
+        prefs.remove(_sessionExpiryKey),
+        prefs.setBool(_sessionExpiredKey, true),
+        prefs.setBool(_appLockRequiredKey, true),
+      ]);
+      print('Session cleared for re-authentication');
+    } catch (e) {
+      print('Clear session error: $e');
     }
   }
 
@@ -487,7 +566,7 @@ class SupabaseService {
       if (phoneNumber != null) updateData['no_hp'] = phoneNumber;
       if (profilePhotoUrl != null) updateData['avatar_url'] = profilePhotoUrl;
       //if (securityEnabled != null)
-        //updateData['security_enabled'] = securityEnabled;
+      //updateData['security_enabled'] = securityEnabled;
 
       final res = await Supabase.instance.client
           .from('technicians')
