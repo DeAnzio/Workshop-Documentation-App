@@ -382,7 +382,6 @@ class SupabaseService {
           .select()
           .single();
 
-      if (res == null) return null;
       final map = Map<String, dynamic>.from(res as Map);
       return map['id']?.toString();
     } catch (e) {
@@ -541,7 +540,6 @@ class SupabaseService {
           .select()
           .eq('service_order_id', serviceOrderId);
 
-      if (res == null) return [];
       final list = res as List<dynamic>;
       return list
           .map((item) => Map<String, dynamic>.from(item as Map))
@@ -584,6 +582,285 @@ class SupabaseService {
       return true;
     } catch (e) {
       print('Update technician profile failed: $e');
+      return false;
+    }
+  }
+
+  static String _hashPin(String pin) {
+    final bytes = utf8.encode(pin);
+    return sha256.convert(bytes).toString();
+  }
+
+  static DateTime? _parseTimestamp(dynamic timestamp) {
+    if (timestamp == null) return null;
+    if (timestamp is DateTime) return timestamp.toUtc();
+    if (timestamp is String) {
+      try {
+        return DateTime.parse(timestamp).toUtc();
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  static Future<bool> _updateTechnicianPinState(
+    String technicianId, {
+    String? pinHash,
+    bool clearPinHash = false,
+    int? pinAttempts,
+    bool clearPinAttempts = false,
+    DateTime? pinLockedUntil,
+    bool clearPinLockedUntil = false,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+      if (clearPinHash) {
+        updateData['pin_hash'] = null;
+      } else if (pinHash != null) {
+        updateData['pin_hash'] = pinHash;
+      }
+      if (clearPinAttempts) {
+        updateData['pin_attempts'] = 0;
+      } else if (pinAttempts != null) {
+        updateData['pin_attempts'] = pinAttempts;
+      }
+      if (clearPinLockedUntil) {
+        updateData['pin_locked_until'] = null;
+      } else if (pinLockedUntil != null) {
+        updateData['pin_locked_until'] = pinLockedUntil.toUtc().toIso8601String();
+      }
+
+      if (updateData.isEmpty) return true;
+
+      print('Updating technician PIN state: $updateData');
+      final res = await Supabase.instance.client
+          .from('technicians')
+          .update(updateData)
+          .eq('id', technicianId);
+
+      try {
+        final map = res as Map<String, dynamic>;
+        if (map.containsKey('error') && map['error'] != null) {
+          print('Update technician PIN state error: ${map['error']}');
+          return false;
+        }
+      } catch (_) {}
+
+      print('PIN state updated successfully');
+      return true;
+    } catch (e) {
+      print('Update technician PIN state failed: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> saveTechnicianPin(
+    String technicianId,
+    String pin,
+  ) async {
+    try {
+      final pinHash = _hashPin(pin);
+
+      final success = await _updateTechnicianPinState(
+        technicianId,
+        pinHash: pinHash,
+        pinAttempts: 0,
+        clearPinAttempts: true,
+        clearPinLockedUntil: true,
+      );
+
+      return success;
+    } catch (e) {
+      print('Save technician PIN failed: $e');
+      return false;
+    }
+  }
+
+  static Future<String?> getTechnicianPinHash(String technicianId) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('technicians')
+          .select('pin_hash')
+          .eq('id', technicianId)
+          .single();
+
+      final map = Map<String, dynamic>.from(res as Map);
+      return map['pin_hash'] as String?;
+    } catch (e) {
+      print('Get technician PIN hash failed: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> _resetPinAttempts(String technicianId) async {
+    return await _updateTechnicianPinState(
+      technicianId,
+      pinAttempts: 0,
+      clearPinLockedUntil: true,
+    );
+  }
+
+  static Future<bool> _recordFailedPinAttempt(String technicianId) async {
+    try {
+      print('Recording failed PIN attempt for technician: $technicianId');
+      final res = await Supabase.instance.client
+          .from('technicians')
+          .select('pin_attempts, pin_locked_until')
+          .eq('id', technicianId)
+          .single();
+
+      final map = Map<String, dynamic>.from(res as Map);
+      final currentAttempts = (map['pin_attempts'] as int?) ?? 0;
+      final nextAttempts = currentAttempts + 1;
+      print('Current attempts: $currentAttempts, next attempts: $nextAttempts');
+
+      if (nextAttempts >= 3) {
+        final lockedUntil = DateTime.now().toUtc().add(const Duration(seconds: 30));
+        print('Locking PIN until: $lockedUntil');
+        final success = await _updateTechnicianPinState(
+          technicianId,
+          pinAttempts: 0,
+          pinLockedUntil: lockedUntil,
+        );
+        if (success) {
+          print('PIN locked successfully');
+        } else {
+          print('Failed to lock PIN');
+        }
+        return success;
+      }
+
+      final success = await _updateTechnicianPinState(
+        technicianId,
+        pinAttempts: nextAttempts,
+      );
+      if (success) {
+        print('PIN attempts updated successfully');
+      } else {
+        print('Failed to update PIN attempts');
+      }
+      return success;
+    } catch (e) {
+      print('Record failed PIN attempt failed: $e');
+      // If columns don't exist, try to add them or notify user
+      if (e.toString().contains('pin_attempts') || e.toString().contains('pin_locked_until')) {
+        print('PIN attempt/lock columns may not exist in database. Please add them to the technicians table.');
+      }
+      return false;
+    }
+  }
+
+  static Future<DateTime?> getTechnicianPinLockExpiration(String technicianId) async {
+    try {
+      print('Getting PIN lock expiration for technician: $technicianId');
+      final res = await Supabase.instance.client
+          .from('technicians')
+          .select('pin_locked_until')
+          .eq('id', technicianId)
+          .single();
+
+      final map = Map<String, dynamic>.from(res as Map);
+      final timestamp = _parseTimestamp(map['pin_locked_until']);
+      print('PIN locked until from DB: $timestamp');
+      return timestamp;
+    } catch (e) {
+      print('Get technician PIN lock expiration failed: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> isTechnicianPinLocked(String technicianId) async {
+    final lockedUntil = await getTechnicianPinLockExpiration(technicianId);
+    return lockedUntil != null && DateTime.now().toUtc().isBefore(lockedUntil);
+  }
+
+  static Future<int> getTechnicianPinLockRemainingSeconds(
+    String technicianId,
+  ) async {
+    final lockedUntil = await getTechnicianPinLockExpiration(technicianId);
+    if (lockedUntil == null) return 0;
+    final remaining = lockedUntil.difference(DateTime.now().toUtc()).inSeconds;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  static Future<bool> verifyTechnicianPin(
+    String technicianId,
+    String pin,
+  ) async {
+    try {
+      print('Verifying PIN for technician: $technicianId');
+      final lockedUntil = await getTechnicianPinLockExpiration(technicianId);
+      print('PIN locked until: $lockedUntil');
+      if (lockedUntil != null && DateTime.now().toUtc().isBefore(lockedUntil)) {
+        print('PIN is currently locked');
+        return false;
+      }
+
+      final storedHash = await getTechnicianPinHash(technicianId);
+      if (storedHash == null || storedHash.isEmpty) {
+        print('No PIN hash stored');
+        return false;
+      }
+      final pinHash = _hashPin(pin);
+      final isValid = storedHash == pinHash;
+      print('PIN valid: $isValid');
+      if (isValid) {
+        await _resetPinAttempts(technicianId);
+        return true;
+      }
+
+      await _recordFailedPinAttempt(technicianId);
+      return false;
+    } catch (e) {
+      print('Verify technician PIN failed: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> lockTechnicianPin(
+    String technicianId,
+    DateTime lockedUntil,
+  ) async {
+    try {
+      print('Locking technician PIN until: $lockedUntil');
+      final success = await _updateTechnicianPinState(
+        technicianId,
+        pinLockedUntil: lockedUntil,
+      );
+      if (success) {
+        print('PIN locked successfully');
+      } else {
+        print('Failed to lock PIN');
+      }
+      return success;
+    } catch (e) {
+      print('Lock technician PIN failed: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> clearTechnicianPin(String technicianId) async {
+    try {
+      final success = await _updateTechnicianPinState(
+        technicianId,
+        clearPinHash: true,
+        clearPinAttempts: true,
+        clearPinLockedUntil: true,
+      );
+      return success;
+    } catch (e) {
+      print('Clear technician PIN failed: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> isTechnicianPinSet(String technicianId) async {
+    try {
+      final pinHash = await getTechnicianPinHash(technicianId);
+      return pinHash != null && pinHash.isNotEmpty;
+    } catch (e) {
+      print('Is technician PIN set failed: $e');
       return false;
     }
   }

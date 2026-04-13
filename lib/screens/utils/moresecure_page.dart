@@ -98,23 +98,17 @@ class _MoreSecurePageState extends State<MoreSecurePage> {
           setState(() {
             _fingerprintEnabled = true;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Fingerprint enabled successfully')),
-          );
+          await _showPopup('Fingerprint Enabled', 'Fingerprint authentication has been enabled.');
         }
       } else {
         await BiometricHelper.disableFingerprint(_technicianId!);
         setState(() {
           _fingerprintEnabled = false;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Fingerprint disabled')));
+        await _showPopup('Fingerprint Disabled', 'Fingerprint authentication has been disabled.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      await _showPopup('Error', 'Error toggling fingerprint authentication: $e');
     }
   }
 
@@ -133,23 +127,17 @@ class _MoreSecurePageState extends State<MoreSecurePage> {
           setState(() {
             _faceIdEnabled = true;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Face ID enabled successfully')),
-          );
+          await _showPopup('Face ID Enabled', 'Face ID authentication has been enabled.');
         }
       } else {
         await BiometricHelper.disableFaceId(_technicianId!);
         setState(() {
           _faceIdEnabled = false;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Face ID disabled')));
+        await _showPopup('Face ID Disabled', 'Face ID authentication has been disabled.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      await _showPopup('Error', 'Error toggling Face ID authentication: $e');
     }
   }
 
@@ -167,24 +155,35 @@ class _MoreSecurePageState extends State<MoreSecurePage> {
           setState(() {
             _genericBiometricEnabled = true;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biometric enabled successfully')),
-          );
+          await _showPopup('Biometric Enabled', 'Biometric authentication has been enabled.');
         }
       } else {
         await BiometricHelper.disableBiometric(_technicianId!);
         setState(() {
           _genericBiometricEnabled = false;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Biometric disabled')));
+        await _showPopup('Biometric Disabled', 'Biometric authentication has been disabled.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      await _showPopup('Error', 'Error toggling biometric authentication: $e');
     }
+  }
+
+  Future<void> _showPopup(String title, String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _setupPIN() async {
@@ -202,9 +201,9 @@ class _MoreSecurePageState extends State<MoreSecurePage> {
       return;
     }
 
-    if (_pinController.text.length < 4) {
+    if (_pinController.text.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PIN must be at least 4 digits')),
+        const SnackBar(content: Text('PIN must be exactly 6 digits')),
       );
       return;
     }

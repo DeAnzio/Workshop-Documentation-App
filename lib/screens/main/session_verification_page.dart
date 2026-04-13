@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
 import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
@@ -17,6 +19,9 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
   String? _technicianId;
   bool _fingerprintAvailable = false;
   bool _faceIdAvailable = false;
+  DateTime? _pinLockedUntil;
+  Timer? _lockTimer;
+  int _pinAttempts = 0; // Local counter for PIN attempts in current session
 
   @override
   void initState() {
@@ -84,31 +89,33 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
         await SupabaseService.setAppLockRequired(false);
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication successful')),
-        );
+        await _showPopup('Authentication Successful', 'Biometric authentication succeeded.');
 
         // Navigate back to home
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         if (!mounted) return;
-        setState(() {
-          _errorMessage = 'Biometric verification failed';
-        });
+        await _showPopup('Authentication Failed', 'Biometric verification failed. Please try again or use PIN.');
       }
     }
   }
 
   Future<void> _verifyPIN() async {
     if (_enteredPin.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter PIN';
-      });
+      await _showPopup('PIN Required', 'Please enter your PIN before verifying.');
       return;
     }
 
     if (_technicianId == null) return;
+
+    if (_isPinLocked) {
+      await _showPopup(
+        'Account Locked',
+        'Too many failed attempts. Please try again in $_lockSecondsRemaining seconds.',
+      );
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -122,6 +129,10 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
       );
 
       if (isValid) {
+        // Reset attempts on successful verification
+        _pinAttempts = 0;
+        _pinLockedUntil = null;
+        
         // Refresh session
         await SupabaseService.refreshSession();
         await SupabaseService.setAppLockRequired(false);
@@ -135,16 +146,41 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
       } else {
+        // Increment local attempt counter
+        _pinAttempts++;
+        print('Local PIN attempts: $_pinAttempts');
+        
         setState(() {
           _loading = false;
-          _errorMessage = 'Invalid PIN';
+          _enteredPin = '';
         });
+
+        // Check if 3 attempts reached locally
+        if (_pinAttempts >= 3) {
+          print('3 failed attempts reached, locking account locally');
+          // Lock account locally for 30 seconds
+          setState(() {
+            _pinLockedUntil = DateTime.now().add(const Duration(seconds: 30));
+          });
+          _startLockTimer();
+          
+          await _showPopup(
+            'Account Locked',
+            'Too many failed attempts. Please try again in $_lockSecondsRemaining seconds.',
+          );
+        } else {
+          final attemptsLeft = 3 - _pinAttempts;
+          await _showPopup(
+            'Invalid PIN',
+            'The PIN you entered is incorrect. You have $attemptsLeft attempts left before account lockout.',
+          );
+        }
       }
     } catch (e) {
       setState(() {
         _loading = false;
-        _errorMessage = 'Error: $e';
       });
+      await _showPopup('Verification Error', 'Error verifying PIN: $e');
     }
   }
 
@@ -154,6 +190,10 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
       _enteredPin += digit;
       _errorMessage = null;
     });
+    // Auto-verify when PIN reaches 6 digits
+    if (_enteredPin.length == 6) {
+      Future.delayed(const Duration(milliseconds: 300), _verifyPIN);
+    }
   }
 
   void _deletePinDigit() {
@@ -161,6 +201,54 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
     setState(() {
       _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
     });
+  }
+
+  bool get _isPinLocked {
+    return _pinLockedUntil != null && DateTime.now().isBefore(_pinLockedUntil!);
+  }
+
+  int get _lockSecondsRemaining {
+    if (_pinLockedUntil == null) return 0;
+    final remaining = _pinLockedUntil!.difference(DateTime.now()).inSeconds;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  void _startLockTimer() {
+    _cancelLockTimer();
+    _lockTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted) return;
+      if (!_isPinLocked) {
+        _cancelLockTimer();
+        setState(() {
+          _pinLockedUntil = null;
+          _errorMessage = null;
+        });
+        return;
+      }
+      setState(() {});
+    });
+  }
+
+  void _cancelLockTimer() {
+    _lockTimer?.cancel();
+    _lockTimer = null;
+  }
+
+  Future<void> _showPopup(String title, String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPinPad() {
@@ -180,14 +268,14 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
             children: row.map((key) {
               if (key == 'bio') {
                 if (!(_fingerprintAvailable || _faceIdAvailable)) {
-                  return const SizedBox(width: 72, height: 65);
+                  return const SizedBox(width: 72, height: 60);
                 }
                 return ElevatedButton(
                   onPressed: _authenticateWithBiometric,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     shape: const CircleBorder(),
-                    fixedSize: const Size(72, 65),
+                    fixedSize: const Size(72, 60),
                   ),
                   child: Icon(
                     _faceIdAvailable ? Icons.face_retouching_natural : Icons.fingerprint,
@@ -204,7 +292,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   shape: const CircleBorder(),
-                  fixedSize: const Size(72, 65),
+                  fixedSize: const Size(72, 60),
                 ),
                 child: key == '<'
                     ? const Icon(
@@ -302,30 +390,34 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Verify button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed:
-                        _loading || _enteredPin.length < 4 ? null : _verifyPIN,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B3A8E),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                if (_isPinLocked)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Verify PIN'),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Account Locked',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try again in $_lockSecondsRemaining seconds',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-
                 const SizedBox(height: 16),
 
                 // Logout option
@@ -347,6 +439,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
 
   @override
   void dispose() {
+    _cancelLockTimer();
     super.dispose();
   }
 }
