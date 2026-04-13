@@ -267,6 +267,25 @@ class SupabaseService {
     }
   }
 
+  /// Fetch technician row by id
+  static Future<Map<String, dynamic>?> fetchTechnicianById(
+    String id,
+  ) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('technicians')
+          .select()
+          .eq('id', id)
+          .limit(1)
+          .maybeSingle();
+      if (res == null) return null;
+      return Map<String, dynamic>.from(res as Map);
+    } catch (e) {
+      print('Fetch technician by id error: $e');
+      return null;
+    }
+  }
+
   /// Fetch customer row by phone
   static Future<Map<String, dynamic>?> fetchCustomerByPhone(
     String phone,
@@ -496,6 +515,62 @@ class SupabaseService {
     } catch (e) {
       print('Upload profile avatar failed: $e');
       return null;
+    }
+  }
+
+  /// Update service order
+  static Future<bool> updateServiceOrder(
+    String serviceOrderId, {
+    String? statusService,
+    String? diagnosa,
+    double? biayaAkhir,
+    String? statusBayar,
+    String? jenisService,
+    double? estimasiBiaya,
+    String? prioritas,
+    String? kondisiFisik,
+    String? kelengkapan,
+    String? keluhan,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+      if (statusService != null) updateData['status_service'] = statusService;
+      if (diagnosa != null) updateData['diagnosa'] = diagnosa;
+      if (biayaAkhir != null) updateData['biaya_akhir'] = biayaAkhir;
+      if (statusBayar != null) updateData['status_bayar'] = statusBayar;
+      if (jenisService != null) updateData['jenis_service'] = jenisService;
+      if (estimasiBiaya != null) updateData['estimasi_biaya'] = estimasiBiaya;
+      if (prioritas != null) updateData['prioritas'] = prioritas;
+      if (kondisiFisik != null) updateData['kondisi_fisik'] = kondisiFisik;
+      if (kelengkapan != null) updateData['kelengkapan'] = kelengkapan;
+      if (keluhan != null) updateData['keluhan'] = keluhan;
+
+      await Supabase.instance.client
+          .from('service_orders')
+          .update(updateData)
+          .eq('id', serviceOrderId);
+
+      print('Service order updated: $serviceOrderId');
+      return true;
+    } catch (e) {
+      print('Update service order failed: $e');
+      return false;
+    }
+  }
+
+  /// Delete service order
+  static Future<bool> deleteServiceOrder(String serviceOrderId) async {
+    try {
+      await Supabase.instance.client
+          .from('service_orders')
+          .delete()
+          .eq('id', serviceOrderId);
+
+      print('Service order deleted: $serviceOrderId');
+      return true;
+    } catch (e) {
+      print('Delete service order failed: $e');
+      return false;
     }
   }
 

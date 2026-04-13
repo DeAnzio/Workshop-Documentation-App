@@ -1,0 +1,240 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/screens/operation/edittiket_page.dart';
+
+class ListTiketPage extends StatefulWidget {
+  const ListTiketPage({super.key});
+
+  @override
+  State<ListTiketPage> createState() => _ListTiketPageState();
+}
+
+class _ListTiketPageState extends State<ListTiketPage> {
+  bool _loading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _tiketList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTiket();
+  }
+
+  Future<void> _loadTiket() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
+    final valid = await SupabaseService.validateSession();
+    if (!mounted) return;
+    if (!valid) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    final techId = await SupabaseService.getCurrentTechnicianId();
+    if (!mounted) return;
+    if (techId == null) {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Pengguna tidak terautentikasi.';
+      });
+      return;
+    }
+
+    try {
+      final res = await Supabase.instance.client
+          .from('service_orders')
+          .select('*, customers(*)')
+          .eq('technician_id', techId)
+          .neq('status_service', 'selesai')
+          .neq('status_service', 'ambil')
+          .order('tgl_masuk', ascending: false);
+
+      final list = List<Map<String, dynamic>>.from(
+        (res as List<dynamic>).map(
+          (item) => Map<String, dynamic>.from(item as Map),
+        ),
+      );
+
+      setState(() {
+        _tiketList = list;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Gagal memuat tiket: $e';
+      });
+    }
+  }
+
+  Future<void> _deleteTiket(String tiketId) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Tiket'),
+          content: const Text('Apakah Anda yakin ingin menghapus tiket ini?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  final success =
+                      await SupabaseService.deleteServiceOrder(tiketId);
+                  if (!mounted) return;
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Tiket berhasil dihapus')),
+                    );
+                    await _loadTiket();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Gagal menghapus tiket')),
+                    );
+                  }
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Daftar Tiket'),
+        backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : _tiketList.isEmpty
+                  ? const Center(child: Text('Belum ada tiket.'))
+                  : RefreshIndicator(
+                      onRefresh: _loadTiket,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _tiketList.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = _tiketList[index];
+                          final customerData = item['customers'];
+                          String nama = '-';
+                          String noHp = '-';
+
+                          if (customerData is Map<String, dynamic>) {
+                            nama = customerData['nama']?.toString() ?? '-';
+                            noHp = customerData['no_hp']?.toString() ?? '-';
+                          } else if (customerData is List &&
+                              customerData.isNotEmpty) {
+                            final customer = Map<String, dynamic>.from(
+                              customerData.first as Map,
+                            );
+                            nama = customer['nama']?.toString() ?? '-';
+                            noHp = customer['no_hp']?.toString() ?? '-';
+                          }
+
+                          final tiketId = item['id']?.toString() ?? '';
+                          final ticket = item['nomor_tiket']?.toString() ?? '-';
+                          final jenis =
+                              item['jenis_perangkat']?.toString() ?? '-';
+                          final merek = item['merek_model']?.toString() ?? '-';
+                          final service =
+                              item['jenis_service']?.toString() ?? '-';
+                          final status =
+                              item['status_service']?.toString() ?? '-';
+                          final catatan = item['keluhan']?.toString() ?? '';
+                          final tglMasuk = item['tgl_masuk']?.toString() ?? '-';
+
+                          return Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        ticket,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit,
+                                                color: Colors.blue),
+                                            onPressed: () async {
+                                              final result =
+                                                  await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      EditTiketPage(
+                                                        tiketData: item,
+                                                      ),
+                                                ),
+                                              );
+                                              if (result == true) {
+                                                await _loadTiket();
+                                              }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete,
+                                                color: Colors.red),
+                                            onPressed: () =>
+                                                _deleteTiket(tiketId),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text('Nama: $nama'),
+                                  Text('No. HP: $noHp'),
+                                  Text('Device: $jenis'),
+                                  Text('Merek/Model: $merek'),
+                                  Text('Jenis Service: $service'),
+                                  Text('Status: $status'),
+                                  Text('Masuk: $tglMasuk'),
+                                  if (catatan.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Text('Keluhan: $catatan'),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+    );
+  }
+}
