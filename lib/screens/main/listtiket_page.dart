@@ -30,7 +30,8 @@ class _ListTiketPageState extends State<ListTiketPage> {
     final valid = await SupabaseService.validateSession();
     if (!mounted) return;
     if (!valid) {
-      Navigator.pushReplacementNamed(context, '/login');
+      final sessionExpired = await SupabaseService.isSessionExpired;
+      Navigator.pushReplacementNamed(context, sessionExpired ? '/verify' : '/login');
       return;
     }
 

@@ -13,7 +13,7 @@ class SupabaseService {
   static const String _persistentLoginKey = 'persistent_login';
   static const String _sessionExpiredKey = 'session_expired';
   static const String _appLockRequiredKey = 'app_lock_required';
-  static const Duration _sessionDuration = Duration(minutes: 1);
+  static const Duration _sessionDuration = Duration(hours: 24);
 
   /// Get current logged-in user ID from local storage
   static Future<String?> get currentUserId async {
