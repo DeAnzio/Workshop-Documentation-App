@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
-
+import 'package:flutter/material.dart';
+import 'package:anzioworkshopapp/screens/utils/Location_help.dart';
+import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class Inputdata extends StatelessWidget {
   const Inputdata({super.key});
@@ -40,17 +40,29 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   final TextEditingController _kelengkapanController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _catatanController = TextEditingController();
-  final TextEditingController _estimasiBiayaController = TextEditingController();
+  final TextEditingController _estimasiBiayaController =
+      TextEditingController();
   final TextEditingController _nominalDpController = TextEditingController();
-  
+  bool _isFetchingLocation = false;
+
   // Variabel untuk dropdown
   String? _jenisDevice;
   String? _serviceType;
   String? _prioritas;
-  
+
   // List pilihan untuk dropdown
-  final List<String> _jenisDeviceList = ['Laptop', 'PC', 'Smartphone', 'Tablet'];
-  final List<String> _serviceTypeList = ['Instalasi', 'Perbaikan', 'Upgrade', 'Maintenance'];
+  final List<String> _jenisDeviceList = [
+    'Laptop',
+    'PC',
+    'Smartphone',
+    'Tablet',
+  ];
+  final List<String> _serviceTypeList = [
+    'Instalasi',
+    'Perbaikan',
+    'Upgrade',
+    'Maintenance',
+  ];
   final List<String> _prioritasList = ['normal', 'urgent', 'express'];
 
   @override
@@ -92,7 +104,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // 2. No. HP
               TextFormField(
                 controller: _nohpController,
@@ -114,10 +126,21 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               // 3. Alamat
               TextFormField(
                 controller: _alamatController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Alamat',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.location_on),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.location_on),
+                  suffixIcon: IconButton(
+                    icon: _isFetchingLocation
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.map),
+                    tooltip: 'Pilih lokasi dengan menjatuhkan pin di peta',
+                    onPressed: _isFetchingLocation ? null : _showLocationPicker,
+                  ),
                 ),
                 maxLines: 2,
               ),
@@ -150,7 +173,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // 4. Merek & Model
               TextFormField(
                 controller: _merekModelController,
@@ -167,7 +190,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // 5. Serial Number
               TextFormField(
                 controller: _serialNumberController,
@@ -261,7 +284,10 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                             top: -8,
                             right: 0,
                             child: IconButton(
-                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              icon: const Icon(
+                                Icons.remove_circle,
+                                color: Colors.red,
+                              ),
                               onPressed: () => _removeImage(index),
                             ),
                           ),
@@ -272,7 +298,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // 10. Service Type (Dropdown)
               DropdownButtonFormField<String>(
                 initialValue: _serviceType,
@@ -352,7 +378,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
-              
+
               // 14. Catatan / Keluhan
               TextFormField(
                 controller: _catatanController,
@@ -365,7 +391,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                 maxLines: 4,
               ),
               const SizedBox(height: 24),
-              
+
               // Button Submit
               ElevatedButton(
                 onPressed: () async {
@@ -393,7 +419,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
       ),
     );
   }
-  
+
   // Fungsi untuk menyimpan data ke database
   Future<void> _simpanDataKeDatabse() async {
     try {
@@ -411,26 +437,38 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
       final serviceOrderId = await SupabaseService.insertCustomerData(
         namaPelanggan: _namaController.text,
         noHp: _nohpController.text,
-        alamat: _alamatController.text.isNotEmpty ? _alamatController.text : null,
+        alamat: _alamatController.text.isNotEmpty
+            ? _alamatController.text
+            : null,
         jenisDevice: _jenisDevice ?? '',
         merekModel: _merekModelController.text,
-        serialNumber: _serialNumberController.text.isNotEmpty ? _serialNumberController.text : null,
-        kondisiFisik: _kondisiFisikController.text.isNotEmpty ? _kondisiFisikController.text : null,
-        kelengkapan: _kelengkapanController.text.isNotEmpty ? _kelengkapanController.text : null,
+        serialNumber: _serialNumberController.text.isNotEmpty
+            ? _serialNumberController.text
+            : null,
+        kondisiFisik: _kondisiFisikController.text.isNotEmpty
+            ? _kondisiFisikController.text
+            : null,
+        kelengkapan: _kelengkapanController.text.isNotEmpty
+            ? _kelengkapanController.text
+            : null,
         password: _passwordController.text,
         keluhan: _catatanController.text,
         serviceType: _serviceType ?? '',
         prioritas: _prioritas ?? 'normal',
-        estimasiBiaya: _estimasiBiayaController.text.isNotEmpty ? double.tryParse(_estimasiBiayaController.text) : null,
-        nominalDp: _nominalDpController.text.isNotEmpty ? double.tryParse(_nominalDpController.text) : null,
+        estimasiBiaya: _estimasiBiayaController.text.isNotEmpty
+            ? double.tryParse(_estimasiBiayaController.text)
+            : null,
+        nominalDp: _nominalDpController.text.isNotEmpty
+            ? double.tryParse(_nominalDpController.text)
+            : null,
         technicianId: techId,
       );
 
       if (serviceOrderId == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal menyimpan data')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Gagal menyimpan data')));
         return;
       }
 
@@ -438,7 +476,8 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
       if (_selectedImages.isNotEmpty) {
         for (var image in _selectedImages) {
           final bytes = await image.readAsBytes();
-          final fileName = '${DateTime.now().millisecondsSinceEpoch}_${image.name}';
+          final fileName =
+              '${DateTime.now().millisecondsSinceEpoch}_${image.name}';
           final photoUrl = await SupabaseService.uploadImage(bytes, fileName);
           if (photoUrl != null) {
             await SupabaseService.insertServicePhoto(serviceOrderId, photoUrl);
@@ -447,23 +486,23 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
       }
 
       if (!mounted) return;
-      
+
       // Tampilkan pesan sukses
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data berhasil disimpan!')),
-      );
-      
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Data berhasil disimpan!')));
+
       // Clear form setelah berhasil
       _clearForm();
     } catch (e) {
       // Tampilkan pesan error
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan data: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menyimpan data: $e')));
     }
   }
-  
+
   @override
   void dispose() {
     _namaController.dispose();
@@ -491,9 +530,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking images: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking images: $e')));
     }
   }
 
@@ -501,6 +540,32 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   void _removeImage(int index) {
     setState(() {
       _selectedImages.removeAt(index);
+    });
+  }
+
+  Future<void> _showLocationPicker() async {
+    setState(() {
+      _isFetchingLocation = true;
+    });
+
+    final selectedAddress = await LocationHelp.openLocationPicker(
+      context,
+      _alamatController.text,
+    );
+
+    if (selectedAddress != null) {
+      setState(() {
+        _alamatController.text = selectedAddress;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alamat berhasil diisi dari peta.')),
+      );
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isFetchingLocation = false;
     });
   }
 
