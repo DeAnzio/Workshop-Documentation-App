@@ -7,6 +7,7 @@ import 'package:anzioworkshopapp/screens/main/history_page.dart';
 import 'package:anzioworkshopapp/screens/main/profile_page.dart';
 import 'package:anzioworkshopapp/screens/main/session_verification_page.dart';
 import 'package:anzioworkshopapp/screens/main/listtiket_page.dart';
+import 'package:anzioworkshopapp/screens/main/sps_page.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -89,6 +90,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         '/profile': (context) => const ProfilePage(),
         '/verify': (context) => const SessionVerificationPage(),
         '/list-tiket': (context) => const ListTiketPage(),
+        '/sps-locator': (context) => const SpsPage(),
       },
     );
   }

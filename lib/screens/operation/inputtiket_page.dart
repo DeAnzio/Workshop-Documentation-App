@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/screens/utils/Location_help.dart';
+import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
 class Inputdata extends StatelessWidget {
@@ -49,6 +51,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   String? _jenisDevice;
   String? _serviceType;
   String? _prioritas;
+  String _selectedCurrency = 'IDR'; // Default currency
 
   // List pilihan untuk dropdown
   final List<String> _jenisDeviceList = [
@@ -355,13 +358,33 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               ),
               const SizedBox(height: 16),
 
+              // Currency Selector
+              const Text(
+                'Mata Uang',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              CurrencySelector(
+                selectedCurrency: _selectedCurrency,
+                onCurrencyChanged: (currency) {
+                  setState(() {
+                    _selectedCurrency = currency;
+                  });
+                },
+                showFlag: true,
+              ),
+              const SizedBox(height: 16),
+
               // 12. Estimasi Biaya
               TextFormField(
                 controller: _estimasiBiayaController,
-                decoration: const InputDecoration(
-                  labelText: 'Estimasi Biaya',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.payments),
+                decoration: InputDecoration(
+                  labelText: 'Estimasi Biaya (${_selectedCurrency})',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.payments),
+                  prefixText: CurrencyService.getCurrencySymbol(
+                    _selectedCurrency,
+                  ),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -370,10 +393,13 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               // 13. Nominal DP
               TextFormField(
                 controller: _nominalDpController,
-                decoration: const InputDecoration(
-                  labelText: 'Nominal DP',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.monetization_on),
+                decoration: InputDecoration(
+                  labelText: 'Nominal DP (${_selectedCurrency})',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.monetization_on),
+                  prefixText: CurrencyService.getCurrencySymbol(
+                    _selectedCurrency,
+                  ),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -462,6 +488,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
             ? double.tryParse(_nominalDpController.text)
             : null,
         technicianId: techId,
+        currency: _selectedCurrency,
       );
 
       if (serviceOrderId == null) {

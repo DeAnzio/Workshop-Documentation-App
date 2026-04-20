@@ -268,9 +268,7 @@ class SupabaseService {
   }
 
   /// Fetch technician row by id
-  static Future<Map<String, dynamic>?> fetchTechnicianById(
-    String id,
-  ) async {
+  static Future<Map<String, dynamic>?> fetchTechnicianById(String id) async {
     try {
       final res = await Supabase.instance.client
           .from('technicians')
@@ -372,6 +370,7 @@ class SupabaseService {
     String prioritas = 'normal',
     double? estimasiBiaya,
     double? nominalDp,
+    String currency = 'IDR',
   }) async {
     try {
       final ticket = _generateTicketNumber();
@@ -397,6 +396,7 @@ class SupabaseService {
             'status_bayar': 'belum',
             'nominal_dp': nominalDp,
             'status_service': 'masuk',
+            'currency': currency,
           })
           .select()
           .single();
@@ -426,6 +426,7 @@ class SupabaseService {
     double? estimasiBiaya,
     double? nominalDp,
     required String technicianId,
+    String currency = 'IDR',
   }) async {
     try {
       final customerId = await createCustomer(
@@ -452,6 +453,7 @@ class SupabaseService {
         prioritas: prioritas,
         estimasiBiaya: estimasiBiaya,
         nominalDp: nominalDp,
+        currency: currency,
       );
 
       if (serviceOrderId == null) {
@@ -531,6 +533,7 @@ class SupabaseService {
     String? kondisiFisik,
     String? kelengkapan,
     String? keluhan,
+    String? currency,
   }) async {
     try {
       final updateData = <String, dynamic>{};
@@ -544,6 +547,7 @@ class SupabaseService {
       if (kondisiFisik != null) updateData['kondisi_fisik'] = kondisiFisik;
       if (kelengkapan != null) updateData['kelengkapan'] = kelengkapan;
       if (keluhan != null) updateData['keluhan'] = keluhan;
+      if (currency != null) updateData['currency'] = currency;
 
       await Supabase.instance.client
           .from('service_orders')
@@ -703,7 +707,9 @@ class SupabaseService {
       if (clearPinLockedUntil) {
         updateData['pin_locked_until'] = null;
       } else if (pinLockedUntil != null) {
-        updateData['pin_locked_until'] = pinLockedUntil.toUtc().toIso8601String();
+        updateData['pin_locked_until'] = pinLockedUntil
+            .toUtc()
+            .toIso8601String();
       }
 
       if (updateData.isEmpty) return true;
@@ -730,10 +736,7 @@ class SupabaseService {
     }
   }
 
-  static Future<bool> saveTechnicianPin(
-    String technicianId,
-    String pin,
-  ) async {
+  static Future<bool> saveTechnicianPin(String technicianId, String pin) async {
     try {
       final pinHash = _hashPin(pin);
 
@@ -791,7 +794,9 @@ class SupabaseService {
       print('Current attempts: $currentAttempts, next attempts: $nextAttempts');
 
       if (nextAttempts >= 3) {
-        final lockedUntil = DateTime.now().toUtc().add(const Duration(seconds: 30));
+        final lockedUntil = DateTime.now().toUtc().add(
+          const Duration(seconds: 30),
+        );
         print('Locking PIN until: $lockedUntil');
         final success = await _updateTechnicianPinState(
           technicianId,
@@ -819,14 +824,19 @@ class SupabaseService {
     } catch (e) {
       print('Record failed PIN attempt failed: $e');
       // If columns don't exist, try to add them or notify user
-      if (e.toString().contains('pin_attempts') || e.toString().contains('pin_locked_until')) {
-        print('PIN attempt/lock columns may not exist in database. Please add them to the technicians table.');
+      if (e.toString().contains('pin_attempts') ||
+          e.toString().contains('pin_locked_until')) {
+        print(
+          'PIN attempt/lock columns may not exist in database. Please add them to the technicians table.',
+        );
       }
       return false;
     }
   }
 
-  static Future<DateTime?> getTechnicianPinLockExpiration(String technicianId) async {
+  static Future<DateTime?> getTechnicianPinLockExpiration(
+    String technicianId,
+  ) async {
     try {
       print('Getting PIN lock expiration for technician: $technicianId');
       final res = await Supabase.instance.client

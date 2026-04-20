@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 
 class EditTiketPage extends StatefulWidget {
   final Map<String, dynamic> tiketData;
 
-  const EditTiketPage({
-    super.key,
-    required this.tiketData,
-  });
+  const EditTiketPage({super.key, required this.tiketData});
 
   @override
   State<EditTiketPage> createState() => _EditTiketPageState();
@@ -29,19 +28,20 @@ class _EditTiketPageState extends State<EditTiketPage> {
   String? _statusBayar;
   String? _jenisService;
   String? _prioritas;
+  String _selectedCurrency = 'IDR'; // Default currency
 
   final List<String> _statusServiceList = [
     'masuk',
     'proses',
     'selesai',
-    'ambil'
+    'ambil',
   ];
   final List<String> _statusBayarList = ['belum', 'lunas', 'dp'];
   final List<String> _jenisServiceList = [
     'Instalasi',
     'Perbaikan',
     'Upgrade',
-    'Maintenance'
+    'Maintenance',
   ];
   final List<String> _prioritasList = ['normal', 'urgent', 'express'];
 
@@ -52,23 +52,30 @@ class _EditTiketPageState extends State<EditTiketPage> {
   }
 
   void _initializeControllers() {
-    _kondisiFisikController =
-        TextEditingController(text: widget.tiketData['kondisi_fisik'] ?? '');
-    _kelengkapanController =
-        TextEditingController(text: widget.tiketData['kelengkapan'] ?? '');
-    _diagnosaController =
-        TextEditingController(text: widget.tiketData['diagnosa'] ?? '');
+    _kondisiFisikController = TextEditingController(
+      text: widget.tiketData['kondisi_fisik'] ?? '',
+    );
+    _kelengkapanController = TextEditingController(
+      text: widget.tiketData['kelengkapan'] ?? '',
+    );
+    _diagnosaController = TextEditingController(
+      text: widget.tiketData['diagnosa'] ?? '',
+    );
     _estimasiBiayaController = TextEditingController(
-        text: widget.tiketData['estimasi_biaya']?.toString() ?? '');
+      text: widget.tiketData['estimasi_biaya']?.toString() ?? '',
+    );
     _biayaAkhirController = TextEditingController(
-        text: widget.tiketData['biaya_akhir']?.toString() ?? '');
-    _keluhanController =
-        TextEditingController(text: widget.tiketData['keluhan'] ?? '');
+      text: widget.tiketData['biaya_akhir']?.toString() ?? '',
+    );
+    _keluhanController = TextEditingController(
+      text: widget.tiketData['keluhan'] ?? '',
+    );
 
     _statusService = widget.tiketData['status_service'] ?? 'masuk';
     _statusBayar = widget.tiketData['status_bayar'] ?? 'belum';
     _jenisService = widget.tiketData['jenis_service'] ?? '';
     _prioritas = widget.tiketData['prioritas'] ?? 'normal';
+    _selectedCurrency = widget.tiketData['currency'] ?? 'IDR';
   }
 
   Future<void> _saveChanges() async {
@@ -100,6 +107,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
             ? double.tryParse(_biayaAkhirController.text)
             : null,
         keluhan: _keluhanController.text,
+        currency: _selectedCurrency,
       );
 
       if (!mounted) return;
@@ -116,9 +124,9 @@ class _EditTiketPageState extends State<EditTiketPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() {
         _loading = false;
@@ -156,9 +164,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 12),
-                            Text(
-                              'No. Tiket: $tiketNo',
-                            ),
+                            Text('No. Tiket: $tiketNo'),
                             Text(
                               'Device: ${widget.tiketData['jenis_perangkat'] ?? '-'}',
                             ),
@@ -294,13 +300,36 @@ class _EditTiketPageState extends State<EditTiketPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Currency Selector
+                    const Text(
+                      'Mata Uang',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CurrencySelector(
+                      selectedCurrency: _selectedCurrency,
+                      onCurrencyChanged: (currency) {
+                        setState(() {
+                          _selectedCurrency = currency;
+                        });
+                      },
+                      showFlag: true,
+                    ),
+                    const SizedBox(height: 16),
+
                     // Estimasi Biaya
                     TextFormField(
                       controller: _estimasiBiayaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Estimasi Biaya',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.attach_money),
+                      decoration: InputDecoration(
+                        labelText: 'Estimasi Biaya (${_selectedCurrency})',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.attach_money),
+                        prefixText: CurrencyService.getCurrencySymbol(
+                          _selectedCurrency,
+                        ),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -309,10 +338,13 @@ class _EditTiketPageState extends State<EditTiketPage> {
                     // Biaya Akhir
                     TextFormField(
                       controller: _biayaAkhirController,
-                      decoration: const InputDecoration(
-                        labelText: 'Biaya Akhir',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.monetization_on),
+                      decoration: InputDecoration(
+                        labelText: 'Biaya Akhir (${_selectedCurrency})',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.monetization_on),
+                        prefixText: CurrencyService.getCurrencySymbol(
+                          _selectedCurrency,
+                        ),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -346,8 +378,12 @@ class _EditTiketPageState extends State<EditTiketPage> {
                       child: ElevatedButton(
                         onPressed: _saveChanges,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color.fromARGB(255, 26, 41, 67),
+                          backgroundColor: const Color.fromARGB(
+                            255,
+                            26,
+                            41,
+                            67,
+                          ),
                           minimumSize: const Size(double.infinity, 50),
                         ),
                         child: const Text(

@@ -127,6 +127,20 @@ class _HomeScaffoldState extends State<HomeScaffold> {
               },
               child: const Text('History'),
             ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/sps-locator');
+              },
+              child: const Text('SPS Locator'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '');
+              },
+              child: const Text(''),
+            ),
             
           ],
         ),
