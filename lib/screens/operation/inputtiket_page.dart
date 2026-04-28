@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/screens/utils/Location_help.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -450,7 +450,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   Future<void> _simpanDataKeDatabse() async {
     try {
       // Get technician id from session
-      final techId = await SupabaseService.getCurrentTechnicianId();
+      final techId = await BackendService.getCurrentTechnicianId();
       if (techId == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -460,7 +460,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
       }
 
       // Insert customer data and get service order ID
-      final serviceOrderId = await SupabaseService.insertCustomerData(
+      final serviceOrderId = await BackendService.insertCustomerData(
         namaPelanggan: _namaController.text,
         noHp: _nohpController.text,
         alamat: _alamatController.text.isNotEmpty
@@ -505,9 +505,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
           final bytes = await image.readAsBytes();
           final fileName =
               '${DateTime.now().millisecondsSinceEpoch}_${image.name}';
-          final photoUrl = await SupabaseService.uploadImage(bytes, fileName);
+          final photoUrl = await BackendService.uploadImage(bytes, fileName);
           if (photoUrl != null) {
-            await SupabaseService.insertServicePhoto(serviceOrderId, photoUrl);
+            await BackendService.insertServicePhoto(serviceOrderId, photoUrl);
           }
         }
       }

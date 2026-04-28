@@ -1,6 +1,6 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 
 class BiometricHelper {
   static final LocalAuthentication _auth = LocalAuthentication();
@@ -147,7 +147,7 @@ class BiometricHelper {
   /// Save PIN to database as hashed value
   static Future<void> savePIN(String technicianId, String pin) async {
     try {
-      await SupabaseService.saveTechnicianPin(technicianId, pin);
+      await BackendService.saveTechnicianPin(technicianId, pin);
     } catch (e) {
       print('Error saving PIN: $e');
     }
@@ -156,7 +156,7 @@ class BiometricHelper {
   /// Get hashed PIN from database
   static Future<String?> getPIN(String technicianId) async {
     try {
-      return await SupabaseService.getTechnicianPinHash(technicianId);
+      return await BackendService.getTechnicianPinHash(technicianId);
     } catch (e) {
       print('Error getting PIN: $e');
       return null;
@@ -166,7 +166,7 @@ class BiometricHelper {
   /// Verify PIN against database hash
   static Future<bool> verifyPIN(String technicianId, String pin) async {
     try {
-      return await SupabaseService.verifyTechnicianPin(technicianId, pin);
+      return await BackendService.verifyTechnicianPin(technicianId, pin);
     } catch (e) {
       print('Error verifying PIN: $e');
       return false;
@@ -176,7 +176,7 @@ class BiometricHelper {
   /// Check if PIN is currently locked
   static Future<bool> isPINLocked(String technicianId) async {
     try {
-      return await SupabaseService.isTechnicianPinLocked(technicianId);
+      return await BackendService.isTechnicianPinLocked(technicianId);
     } catch (e) {
       print('Error checking PIN lock status: $e');
       return false;
@@ -186,7 +186,7 @@ class BiometricHelper {
   /// Get remaining PIN lock duration in seconds
   static Future<int> getPINLockRemainingSeconds(String technicianId) async {
     try {
-      return await SupabaseService.getTechnicianPinLockRemainingSeconds(technicianId);
+      return await BackendService.getTechnicianPinLockRemainingSeconds(technicianId);
     } catch (e) {
       print('Error getting PIN lock remaining seconds: $e');
       return 0;
@@ -196,7 +196,7 @@ class BiometricHelper {
   /// Clear PIN from database
   static Future<void> clearPIN(String technicianId) async {
     try {
-      await SupabaseService.clearTechnicianPin(technicianId);
+      await BackendService.clearTechnicianPin(technicianId);
     } catch (e) {
       print('Error clearing PIN: $e');
     }
@@ -205,7 +205,7 @@ class BiometricHelper {
   /// Check if PIN is set in database
   static Future<bool> isPINSet(String technicianId) async {
     try {
-      return await SupabaseService.isTechnicianPinSet(technicianId);
+      return await BackendService.isTechnicianPinSet(technicianId);
     } catch (e) {
       print('Error checking PIN status: $e');
       return false;

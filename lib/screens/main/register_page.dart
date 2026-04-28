@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -37,7 +37,7 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
-      final created = await SupabaseService.createTechnician(name, email, password);
+      final created = await BackendService.createTechnician(name, email, password);
       if (!mounted) return;
       
       if (created) {

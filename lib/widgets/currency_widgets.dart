@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
 
 class CurrencySelector extends StatefulWidget {
@@ -89,25 +89,25 @@ class _CurrencySelectorState extends State<CurrencySelector> {
   Widget _buildCurrencyFlag(String currencyCode) {
     // Simple flag representation using emoji flags
     const flagEmojis = {
-      'USD': '🇺🇸',
-      'EUR': '🇪🇺',
-      'JPY': '🇯🇵',
-      'GBP': '🇬🇧',
-      'IDR': '🇮🇩',
-      'SGD': '🇸🇬',
-      'AUD': '🇦🇺',
-      'CAD': '🇨🇦',
-      'CHF': '🇨🇭',
-      'CNY': '🇨🇳',
-      'KRW': '🇰🇷',
-      'THB': '🇹🇭',
-      'MYR': '🇲🇾',
-      'HKD': '🇭🇰',
-      'NZD': '🇳🇿',
+      'USD': 'ðŸ‡ºðŸ‡¸',
+      'EUR': 'ðŸ‡ªðŸ‡º',
+      'JPY': 'ðŸ‡¯ðŸ‡µ',
+      'GBP': 'ðŸ‡¬ðŸ‡§',
+      'IDR': 'ðŸ‡®ðŸ‡©',
+      'SGD': 'ðŸ‡¸ðŸ‡¬',
+      'AUD': 'ðŸ‡¦ðŸ‡º',
+      'CAD': 'ðŸ‡¨ðŸ‡¦',
+      'CHF': 'ðŸ‡¨ðŸ‡­',
+      'CNY': 'ðŸ‡¨ðŸ‡³',
+      'KRW': 'ðŸ‡°ðŸ‡·',
+      'THB': 'ðŸ‡¹ðŸ‡­',
+      'MYR': 'ðŸ‡²ðŸ‡¾',
+      'HKD': 'ðŸ‡­ðŸ‡°',
+      'NZD': 'ðŸ‡³ðŸ‡¿',
     };
 
     return Text(
-      flagEmojis[currencyCode] ?? '🏳️',
+      flagEmojis[currencyCode] ?? 'ðŸ³ï¸',
       style: const TextStyle(fontSize: 16),
     );
   }
@@ -227,3 +227,4 @@ class _CurrencyConverterState extends State<CurrencyConverter> {
     );
   }
 }
+

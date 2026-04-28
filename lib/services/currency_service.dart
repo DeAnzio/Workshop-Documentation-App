@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class CurrencyService {
@@ -7,17 +7,17 @@ class CurrencyService {
   // Supported currencies with their symbols
   static const Map<String, Map<String, String>> supportedCurrencies = {
     'USD': {'name': 'US Dollar', 'symbol': '\$'},
-    'EUR': {'name': 'Euro', 'symbol': '€'},
-    'JPY': {'name': 'Japanese Yen', 'symbol': '¥'},
-    'GBP': {'name': 'British Pound', 'symbol': '£'},
+    'EUR': {'name': 'Euro', 'symbol': 'â‚¬'},
+    'JPY': {'name': 'Japanese Yen', 'symbol': 'Â¥'},
+    'GBP': {'name': 'British Pound', 'symbol': 'Â£'},
     'IDR': {'name': 'Indonesian Rupiah', 'symbol': 'Rp'},
     'SGD': {'name': 'Singapore Dollar', 'symbol': 'S\$'},
     'AUD': {'name': 'Australian Dollar', 'symbol': 'A\$'},
     'CAD': {'name': 'Canadian Dollar', 'symbol': 'C\$'},
     'CHF': {'name': 'Swiss Franc', 'symbol': 'CHF'},
-    'CNY': {'name': 'Chinese Yuan', 'symbol': '¥'},
-    'KRW': {'name': 'South Korean Won', 'symbol': '₩'},
-    'THB': {'name': 'Thai Baht', 'symbol': '฿'},
+    'CNY': {'name': 'Chinese Yuan', 'symbol': 'Â¥'},
+    'KRW': {'name': 'South Korean Won', 'symbol': 'â‚©'},
+    'THB': {'name': 'Thai Baht', 'symbol': 'à¸¿'},
     'MYR': {'name': 'Malaysian Ringgit', 'symbol': 'RM'},
     'HKD': {'name': 'Hong Kong Dollar', 'symbol': 'HK\$'},
     'NZD': {'name': 'New Zealand Dollar', 'symbol': 'NZ\$'},
@@ -133,3 +133,4 @@ class CurrencyService {
     return supportedCurrencies.keys.toList()..sort();
   }
 }
+

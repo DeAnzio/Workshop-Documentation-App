@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 
 class MoreSecurePage extends StatefulWidget {
   const MoreSecurePage({super.key});
@@ -43,7 +43,7 @@ class _MoreSecurePageState extends State<MoreSecurePage> {
     });
 
     try {
-      final techId = await SupabaseService.getCurrentTechnicianId();
+      final techId = await BackendService.getCurrentTechnicianId();
       if (techId == null) {
         setState(() {
           _loading = false;
@@ -473,7 +473,7 @@ class _MoreSecurePageState extends State<MoreSecurePage> {
                           if (!_pinSet) ...[
                             const SizedBox(height: 12),
                             const Text(
-                              'Set a 4-6 digit PIN to add additional protection',
+                              'Set a 6 digit PIN to add additional protection',
                               style: TextStyle(fontSize: 12),
                             ),
                           ],

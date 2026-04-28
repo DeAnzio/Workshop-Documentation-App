@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/screens/utils/Location_help.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/screens/operation/edittiket_page.dart';
 
 class ListTiketPage extends StatefulWidget {
@@ -28,10 +27,10 @@ class _ListTiketPageState extends State<ListTiketPage> {
       _errorMessage = null;
     });
 
-    final valid = await SupabaseService.validateSession();
+    final valid = await BackendService.validateSession();
     if (!mounted) return;
     if (!valid) {
-      final sessionExpired = await SupabaseService.isSessionExpired;
+      final sessionExpired = await BackendService.isSessionExpired;
       Navigator.pushReplacementNamed(
         context,
         sessionExpired ? '/verify' : '/login',
@@ -39,7 +38,7 @@ class _ListTiketPageState extends State<ListTiketPage> {
       return;
     }
 
-    final techId = await SupabaseService.getCurrentTechnicianId();
+    final techId = await BackendService.getCurrentTechnicianId();
     if (!mounted) return;
     if (techId == null) {
       setState(() {
@@ -50,18 +49,9 @@ class _ListTiketPageState extends State<ListTiketPage> {
     }
 
     try {
-      final res = await Supabase.instance.client
-          .from('service_orders')
-          .select('*, customers(*)')
-          .eq('technician_id', techId)
-          .neq('status_service', 'selesai')
-          .neq('status_service', 'ambil')
-          .order('tgl_masuk', ascending: false);
-
-      final list = List<Map<String, dynamic>>.from(
-        (res as List<dynamic>).map(
-          (item) => Map<String, dynamic>.from(item as Map),
-        ),
+      final list = await BackendService.fetchServiceOrdersForTechnician(
+        techId,
+        excludeFinished: true,
       );
 
       setState(() {
@@ -92,7 +82,7 @@ class _ListTiketPageState extends State<ListTiketPage> {
               onPressed: () async {
                 Navigator.pop(context);
                 try {
-                  final success = await SupabaseService.deleteServiceOrder(
+                  final success = await BackendService.deleteServiceOrder(
                     tiketId,
                   );
                   if (!mounted) return;
@@ -266,3 +256,4 @@ class _ListTiketPageState extends State<ListTiketPage> {
     );
   }
 }
+

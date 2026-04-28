@@ -1,7 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
 
 class SessionVerificationPage extends StatefulWidget {
@@ -14,7 +14,6 @@ class SessionVerificationPage extends StatefulWidget {
 
 class _SessionVerificationPageState extends State<SessionVerificationPage> {
   String _enteredPin = '';
-  bool _loading = false;
   String? _errorMessage;
   String? _technicianId;
   bool _fingerprintAvailable = false;
@@ -31,7 +30,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
 
   Future<void> _initialize() async {
     try {
-      final techId = await SupabaseService.getTechnicianIdWithoutSessionCheck();
+      final techId = await BackendService.getTechnicianIdWithoutSessionCheck();
       if (techId == null) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/login');
@@ -47,10 +46,19 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
       );
       final faceIdEnabled = await BiometricHelper.isFaceIdEnabled(techId);
       final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(techId);
+      final pinSet = await BiometricHelper.isPINSet(techId);
 
       final hasFingerprintBio = biometrics.any((b) => b.toString().contains('fingerprint'));
       final hasFaceBio = biometrics.any((b) => b.toString().contains('face'));
       final hasAnyBio = biometrics.isNotEmpty;
+      final securityEnabled = pinSet || fingerprintEnabled || faceIdEnabled || genericBiometricEnabled;
+
+      if (!securityEnabled) {
+        await BackendService.setAppLockRequired(false);
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/home');
+        return;
+      }
 
       setState(() {
         _fingerprintAvailable = hasFingerprintBio && fingerprintEnabled;
@@ -85,8 +93,8 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
 
       if (authenticated) {
         // Refresh session
-        await SupabaseService.refreshSession();
-        await SupabaseService.setAppLockRequired(false);
+        await BackendService.refreshSession();
+        await BackendService.setAppLockRequired(false);
         if (!mounted) return;
 
         await _showPopup('Authentication Successful', 'Biometric authentication succeeded.');
@@ -118,7 +126,6 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
     }
 
     setState(() {
-      _loading = true;
       _errorMessage = null;
     });
 
@@ -134,8 +141,8 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
         _pinLockedUntil = null;
         
         // Refresh session
-        await SupabaseService.refreshSession();
-        await SupabaseService.setAppLockRequired(false);
+        await BackendService.refreshSession();
+        await BackendService.setAppLockRequired(false);
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -151,7 +158,6 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
         print('Local PIN attempts: $_pinAttempts');
         
         setState(() {
-          _loading = false;
           _enteredPin = '';
         });
 
@@ -177,9 +183,6 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
         }
       }
     } catch (e) {
-      setState(() {
-        _loading = false;
-      });
       await _showPopup('Verification Error', 'Error verifying PIN: $e');
     }
   }
@@ -423,7 +426,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                 // Logout option
                 TextButton(
                   onPressed: () async {
-                    await SupabaseService.signOut();
+                    await BackendService.signOut();
                     if (!mounted) return;
                     Navigator.pushReplacementNamed(context, '/login');
                   },
@@ -443,3 +446,4 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
     super.dispose();
   }
 }
+

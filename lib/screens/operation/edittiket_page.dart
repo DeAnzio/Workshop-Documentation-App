@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 
 class EditTiketPage extends StatefulWidget {
@@ -91,7 +91,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
         throw Exception('Tiket ID tidak ditemukan');
       }
 
-      final success = await SupabaseService.updateServiceOrder(
+      final success = await BackendService.updateServiceOrder(
         tiketId,
         statusService: _statusService,
         statusBayar: _statusBayar,
@@ -414,3 +414,4 @@ class _EditTiketPageState extends State<EditTiketPage> {
     super.dispose();
   }
 }
+

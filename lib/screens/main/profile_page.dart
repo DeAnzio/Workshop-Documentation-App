@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/screens/utils/moresecure_page.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 
 class ProfilePage extends StatefulWidget {
@@ -37,15 +36,15 @@ class _ProfilePageState extends State<ProfilePage> {
       _errorMessage = null;
     });
 
-    final valid = await SupabaseService.validateSession();
+    final valid = await BackendService.validateSession();
     if (!mounted) return;
     if (!valid) {
-      final sessionExpired = await SupabaseService.isSessionExpired;
+      final sessionExpired = await BackendService.isSessionExpired;
       Navigator.pushReplacementNamed(context, sessionExpired ? '/verify' : '/login');
       return;
     }
 
-    final techId = await SupabaseService.getCurrentTechnicianId();
+    final techId = await BackendService.getCurrentTechnicianId();
     if (!mounted) return;
     if (techId == null) {
       setState(() {
@@ -56,13 +55,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
-      final res = await Supabase.instance.client
-          .from('technicians')
-          .select()
-          .eq('id', techId)
-          .single();
+      final data = await BackendService.fetchTechnicianById(techId);
+      if (data == null) {
+        throw Exception('Technician not found');
+      }
 
-      final data = Map<String, dynamic>.from(res as Map);
       setState(() {
         _technicianData = data;
         _nameController.text = data['name'] ?? '';
@@ -86,7 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _errorMessage = null;
     });
 
-    final techId = await SupabaseService.getCurrentTechnicianId();
+    final techId = await BackendService.getCurrentTechnicianId();
     if (techId == null) {
       setState(() {
         _loading = false;
@@ -101,7 +98,7 @@ class _ProfilePageState extends State<ProfilePage> {
         final bytes = await _selectedImage!.readAsBytes();
         final fileName =
             'profile_${techId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        photoUrl = await SupabaseService.uploadProfileAvatar(bytes, fileName);
+        photoUrl = await BackendService.uploadProfileAvatar(bytes, fileName);
       }
 
       final updateData = {
@@ -114,7 +111,7 @@ class _ProfilePageState extends State<ProfilePage> {
         updateData['avatar_url'] = photoUrl;
       }
 
-      final success = await SupabaseService.updateTechnicianProfile(
+      final success = await BackendService.updateTechnicianProfile(
         techId,
         name: _nameController.text,
         phoneNumber: _phoneController.text,
@@ -182,7 +179,17 @@ class _ProfilePageState extends State<ProfilePage> {
                         backgroundImage: _selectedImage != null
                             ? FileImage(File(_selectedImage!.path))
                             : (_technicianData?['avatar_url'] != null
-                                  ? NetworkImage(_technicianData!['avatar_url'])
+                                  ? ((_technicianData!['avatar_url'] as String)
+                                          .startsWith('/') ||
+                                      (_technicianData!['avatar_url'] as String)
+                                          .startsWith('file://')
+                                      ? FileImage(File(
+                                          (_technicianData!['avatar_url'] as String)
+                                              .replaceFirst('file://', ''),
+                                        ))
+                                      : NetworkImage(
+                                          _technicianData!['avatar_url'],
+                                        ))
                                   : null),
                         child:
                             _selectedImage == null &&

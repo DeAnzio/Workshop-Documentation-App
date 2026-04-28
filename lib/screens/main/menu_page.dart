@@ -1,5 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/screens/operation/inputtiket_page.dart';
 
 
@@ -21,9 +23,9 @@ class _HomeScaffoldState extends State<HomeScaffold> {
   }
 
   Future<void> _loadAvatar() async {
-    final userId = await SupabaseService.currentUserId;
+    final userId = await BackendService.currentUserId;
     if (userId != null) {
-      final technicianData = await SupabaseService.fetchTechnicianById(userId);
+      final technicianData = await BackendService.fetchTechnicianById(userId);
       if (technicianData != null && technicianData['avatar_url'] != null) {
         setState(() {
           _avatarUrl = technicianData['avatar_url'];
@@ -50,8 +52,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
                 Navigator.pop(context);
                 
                 try {
-                  await SupabaseService.signOut();
-                  if (!context.mounted) return;
+                    await BackendService.signOut();
                   
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Logged out successfully')),
@@ -150,7 +151,9 @@ class _HomeScaffoldState extends State<HomeScaffold> {
           BottomNavigationBarItem(
             icon: CircleAvatar(
               backgroundImage: _avatarUrl != null
-                  ? NetworkImage(_avatarUrl!)
+                  ? (_avatarUrl!.startsWith('/') || _avatarUrl!.startsWith('file://')
+                      ? FileImage(File(_avatarUrl!.replaceFirst('file://', '')))
+                      : NetworkImage(_avatarUrl!)) as ImageProvider?
                   : null,
               radius: 15,
               child: _avatarUrl == null

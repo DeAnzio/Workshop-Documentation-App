@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:anzioworkshopapp/screens/main/login_page.dart';
 import 'package:anzioworkshopapp/screens/main/register_page.dart';
 import 'package:anzioworkshopapp/screens/main/menu_page.dart';
@@ -8,32 +7,35 @@ import 'package:anzioworkshopapp/screens/main/profile_page.dart';
 import 'package:anzioworkshopapp/screens/main/session_verification_page.dart';
 import 'package:anzioworkshopapp/screens/main/listtiket_page.dart';
 import 'package:anzioworkshopapp/screens/main/sps_page.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-String? _supabaseInitError;
+String? _initError;
+
+Future<bool> _isSecurityEnabledForCurrentUser() async {
+  final technicianId = await BackendService.getTechnicianIdWithoutSessionCheck();
+  if (technicianId == null) return false;
+
+  final pinSet = await BiometricHelper.isPINSet(technicianId);
+  final fingerprintEnabled = await BiometricHelper.isFingerPrintEnabled(technicianId);
+  final faceIdEnabled = await BiometricHelper.isFaceIdEnabled(technicianId);
+  final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(technicianId);
+
+  return pinSet || fingerprintEnabled || faceIdEnabled || genericBiometricEnabled;
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await dotenv.load(fileName: ".env");
+    await BackendService.initialize();
   } catch (e) {
-    _supabaseInitError = 'Failed to load .env file: $e';
+    _initError = 'Failed to load .env file: $e';
   }
 
-  if (_supabaseInitError == null) {
-    try {
-      await Supabase.initialize(
-        url: dotenv.env['SUPABASE_URL']!,
-        anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-      );
-    } catch (e) {
-      _supabaseInitError = 'Supabase initialization failed: $e';
-    }
-  }
-
-  runApp(MyApp(initError: _supabaseInitError));
+  runApp(MyApp(initError: _initError));
 }
 
 class MyApp extends StatefulWidget {
@@ -67,11 +69,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      final hasPersistent = await SupabaseService.hasPersistentLogin;
-      if (hasPersistent) {
-        await SupabaseService.setAppLockRequired(true);
+      final hasPersistent = await BackendService.hasPersistentLogin;
+      final securityEnabled = await _isSecurityEnabled();
+
+      if (hasPersistent && securityEnabled) {
+        await BackendService.setAppLockRequired(true);
+      } else {
+        await BackendService.setAppLockRequired(false);
       }
     }
+  }
+
+  Future<bool> _isSecurityEnabled() async {
+    final technicianId = await BackendService.getTechnicianIdWithoutSessionCheck();
+    if (technicianId == null) return false;
+
+    final pinSet = await BiometricHelper.isPINSet(technicianId);
+    final fingerprintEnabled = await BiometricHelper.isFingerPrintEnabled(technicianId);
+    final faceIdEnabled = await BiometricHelper.isFaceIdEnabled(technicianId);
+    final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(technicianId);
+
+    return pinSet || fingerprintEnabled || faceIdEnabled || genericBiometricEnabled;
   }
 
   @override
@@ -112,7 +130,7 @@ class ErrorScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Supabase initialization failed.',
+                'Environment initialization failed.',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
@@ -143,27 +161,38 @@ class _StartupPageState extends State<StartupPage> {
 
   Future<String?> _determineRoute() async {
     // If app was locked because it was closed/backgrounded, request verification
-    final appLocked = await SupabaseService.isAppLockRequired;
+    final appLocked = await BackendService.isAppLockRequired;
     if (appLocked) {
-      return '/verify';
+      if (await _isSecurityEnabledForCurrentUser()) {
+        return '/verify';
+      }
+      await BackendService.setAppLockRequired(false);
     }
 
     // Check if user is logged in with valid session
-    final isLoggedIn = await SupabaseService.isLoggedIn;
+    final isLoggedIn = await BackendService.isLoggedIn;
     if (isLoggedIn) {
       return '/home';
     }
 
     // Check if session expired but user has persistent login
-    final isSessionExpired = await SupabaseService.isSessionExpired;
+    final isSessionExpired = await BackendService.isSessionExpired;
     if (isSessionExpired) {
-      return '/verify';
+      if (await _isSecurityEnabledForCurrentUser()) {
+        return '/verify';
+      }
+      await BackendService.refreshSession();
+      return '/home';
     }
 
     // Check if just checking session expired flag
-    final sessionExpiredFlag = await SupabaseService.checkSessionExpired();
+    final sessionExpiredFlag = await BackendService.checkSessionExpired();
     if (sessionExpiredFlag) {
-      return '/verify';
+      if (await _isSecurityEnabledForCurrentUser()) {
+        return '/verify';
+      }
+      await BackendService.refreshSession();
+      return '/home';
     }
 
     // No persistent login, go to login page

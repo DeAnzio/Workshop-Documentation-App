@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/services/supabase_service.dart';
+import 'package:anzioworkshopapp/services/backend_service.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -20,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text;
 
     try {
-      final success = await SupabaseService.signIn(email, password);
+      final success = await BackendService.signIn(email, password);
       if (success) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/home');
