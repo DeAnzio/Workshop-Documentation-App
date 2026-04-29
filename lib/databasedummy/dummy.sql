@@ -47,7 +47,8 @@ CREATE TABLE technicians (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name                  VARCHAR(100) NOT NULL,
   email                 VARCHAR(150) UNIQUE NOT NULL,
-  password              VARCHAR(255),                    -- hashed, nullable jika pakai biometrik only
+  password              VARCHAR(255),            
+  kesanpesan            TEXT NOT NULL,      -- hashed, nullable jika pakai biometrik only
 
   -- Profile
   avatar_url              TEXT,

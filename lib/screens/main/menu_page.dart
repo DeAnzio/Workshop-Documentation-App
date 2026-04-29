@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/screens/operation/inputtiket_page.dart';
 
-
 class HomeScaffold extends StatefulWidget {
   const HomeScaffold({super.key});
 
@@ -50,21 +49,22 @@ class _HomeScaffoldState extends State<HomeScaffold> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(context);
-                
+
                 try {
-                    await BackendService.signOut();
-                  
+                  await BackendService.signOut();
+
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Logged out successfully')),
                   );
-                  
+
                   // Navigate back to login immediately
                   Navigator.pushReplacementNamed(context, '/login');
                 } catch (e) {
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Logout error: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Logout error: $e')));
                 }
               },
               child: const Text('Logout'),
@@ -86,9 +86,8 @@ class _HomeScaffoldState extends State<HomeScaffold> {
         await _loadAvatar();
         break;
       case 1:
-        // Saran dan Kesan TPM
-        // Assuming a route for TPM feedback, if not exists, you can add it
-        await Navigator.pushNamed(context, '/tpm-feedback');
+        // Kesan dan Pesan
+        await Navigator.pushNamed(context, '/kesan-pesan');
         await _loadAvatar();
         break;
       case 2:
@@ -138,11 +137,10 @@ class _HomeScaffoldState extends State<HomeScaffold> {
             const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, '');
+                Navigator.pushNamed(context, '/askme');
               },
-              child: const Text(''),
+              child: const Text('Chatbot'),
             ),
-            
           ],
         ),
       ),
@@ -151,9 +149,13 @@ class _HomeScaffoldState extends State<HomeScaffold> {
           BottomNavigationBarItem(
             icon: CircleAvatar(
               backgroundImage: _avatarUrl != null
-                  ? (_avatarUrl!.startsWith('/') || _avatarUrl!.startsWith('file://')
-                      ? FileImage(File(_avatarUrl!.replaceFirst('file://', '')))
-                      : NetworkImage(_avatarUrl!)) as ImageProvider?
+                  ? (_avatarUrl!.startsWith('/') ||
+                                _avatarUrl!.startsWith('file://')
+                            ? FileImage(
+                                File(_avatarUrl!.replaceFirst('file://', '')),
+                              )
+                            : NetworkImage(_avatarUrl!))
+                        as ImageProvider?
                   : null,
               radius: 15,
               child: _avatarUrl == null
@@ -164,7 +166,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.feedback),
-            label: 'TPM Feedback',
+            label: 'Kesan Pesan',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.logout),

@@ -30,7 +30,7 @@ class InputDataPelanggan extends StatefulWidget {
 class _InputDataPelangganState extends State<InputDataPelanggan> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
-  List<XFile> _selectedImages = [];
+  final List<XFile> _selectedImages = [];
 
   // Controllers untuk text field
   final TextEditingController _namaController = TextEditingController();
@@ -379,7 +379,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               TextFormField(
                 controller: _estimasiBiayaController,
                 decoration: InputDecoration(
-                  labelText: 'Estimasi Biaya (${_selectedCurrency})',
+                  labelText: 'Estimasi Biaya ($_selectedCurrency)',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.payments),
                   prefixText: CurrencyService.getCurrencySymbol(
@@ -394,7 +394,7 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               TextFormField(
                 controller: _nominalDpController,
                 decoration: InputDecoration(
-                  labelText: 'Nominal DP (${_selectedCurrency})',
+                  labelText: 'Nominal DP ($_selectedCurrency)',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.monetization_on),
                   prefixText: CurrencyService.getCurrencySymbol(

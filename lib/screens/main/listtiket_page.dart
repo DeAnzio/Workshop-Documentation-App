@@ -129,7 +129,7 @@ class _ListTiketPageState extends State<ListTiketPage> {
               child: ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _tiketList.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final item = _tiketList[index];
                   final customerData = item['customers'];

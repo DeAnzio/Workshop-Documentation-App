@@ -182,7 +182,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
 
                     // Status Service
                     DropdownButtonFormField<String>(
-                      value: _statusService,
+                      initialValue: _statusService,
                       decoration: const InputDecoration(
                         labelText: 'Status Servis',
                         border: OutlineInputBorder(),
@@ -210,7 +210,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
 
                     // Jenis Service
                     DropdownButtonFormField<String>(
-                      value: _jenisService,
+                      initialValue: _jenisService,
                       decoration: const InputDecoration(
                         labelText: 'Jenis Servis',
                         border: OutlineInputBorder(),
@@ -232,7 +232,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
 
                     // Prioritas
                     DropdownButtonFormField<String>(
-                      value: _prioritas,
+                      initialValue: _prioritas,
                       decoration: const InputDecoration(
                         labelText: 'Prioritas',
                         border: OutlineInputBorder(),
@@ -324,7 +324,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                     TextFormField(
                       controller: _estimasiBiayaController,
                       decoration: InputDecoration(
-                        labelText: 'Estimasi Biaya (${_selectedCurrency})',
+                        labelText: 'Estimasi Biaya ($_selectedCurrency)',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.attach_money),
                         prefixText: CurrencyService.getCurrencySymbol(
@@ -339,7 +339,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                     TextFormField(
                       controller: _biayaAkhirController,
                       decoration: InputDecoration(
-                        labelText: 'Biaya Akhir (${_selectedCurrency})',
+                        labelText: 'Biaya Akhir ($_selectedCurrency)',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.monetization_on),
                         prefixText: CurrencyService.getCurrencySymbol(
@@ -352,7 +352,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
 
                     // Status Pembayaran
                     DropdownButtonFormField<String>(
-                      value: _statusBayar,
+                      initialValue: _statusBayar,
                       decoration: const InputDecoration(
                         labelText: 'Status Pembayaran',
                         border: OutlineInputBorder(),

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
@@ -35,6 +35,9 @@ class BackendService {
       onCreate: (db, version) async {
         await _createSchema(db);
       },
+      onOpen: (db) async {
+        await _updateSchema(db);
+      },
     );
     return _db!;
   }
@@ -48,6 +51,7 @@ class BackendService {
         password TEXT NOT NULL,
         avatar_url TEXT,
         no_hp TEXT,
+        kesanpesan TEXT,
         pin_hash TEXT,
         pin_attempts INTEGER DEFAULT 0,
         pin_locked_until TEXT,
@@ -108,7 +112,24 @@ class BackendService {
     ''');
   }
 
-  static Future<File> _localFile(String fileName, {String folder = 'uploads'}) async {
+  static Future<void> _updateSchema(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(technicians)');
+    final hasKesanPesan = columns.any(
+      (column) => column['name'] == 'kesanpesan',
+    );
+    if (!hasKesanPesan) {
+      try {
+        await db.execute('ALTER TABLE technicians ADD COLUMN kesanpesan TEXT');
+      } catch (_) {
+        // ignore if column already exists or sqlite does not support this addition
+      }
+    }
+  }
+
+  static Future<File> _localFile(
+    String fileName, {
+    String folder = 'uploads',
+  }) async {
     final directory = await getApplicationDocumentsDirectory();
     final folderPath = p.join(directory.path, folder);
     await Directory(folderPath).create(recursive: true);
@@ -625,16 +646,13 @@ class BackendService {
       if (excludeFinished) {
         whereClauses.add("status_service NOT IN ('selesai','ambil')");
       }
-      final rows = await db.rawQuery(
-        '''
+      final rows = await db.rawQuery('''
         SELECT so.*, c.nama AS customer_nama, c.no_hp AS customer_no_hp, c.alamat AS customer_alamat
         FROM service_orders so
         JOIN customers c ON so.customer_id = c.id
         WHERE ${whereClauses.join(' AND ')}
         ORDER BY so.tgl_masuk DESC
-        ''',
-        whereArgs,
-      );
+        ''', whereArgs);
       return rows.map((row) {
         final item = Map<String, dynamic>.from(row);
         item['customers'] = {
@@ -759,6 +777,7 @@ class BackendService {
     String? name,
     String? phoneNumber,
     String? profilePhotoUrl,
+    String? kesanPesan,
     bool? securityEnabled,
   }) async {
     try {
@@ -767,6 +786,7 @@ class BackendService {
       if (name != null) updateData['name'] = name;
       if (phoneNumber != null) updateData['no_hp'] = phoneNumber;
       if (profilePhotoUrl != null) updateData['avatar_url'] = profilePhotoUrl;
+      if (kesanPesan != null) updateData['kesanpesan'] = kesanPesan;
       if (updateData.isEmpty) return false;
       updateData['updated_at'] = DateTime.now().toIso8601String();
       final count = await db.update(
@@ -778,6 +798,28 @@ class BackendService {
       return count > 0;
     } catch (e) {
       print('Update technician profile failed: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> saveTechnicianFeedback(
+    String technicianId,
+    String feedback,
+  ) async {
+    try {
+      final db = await _openDatabase();
+      final count = await db.update(
+        'technicians',
+        {
+          'kesanpesan': feedback,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [int.tryParse(technicianId) ?? 0],
+      );
+      return count > 0;
+    } catch (e) {
+      print('Save technician feedback failed: $e');
       return false;
     }
   }
@@ -905,7 +947,9 @@ class BackendService {
       final currentAttempts = rows.first['pin_attempts'] as int? ?? 0;
       final nextAttempts = currentAttempts + 1;
       if (nextAttempts >= 3) {
-        final lockedUntil = DateTime.now().toUtc().add(const Duration(seconds: 30));
+        final lockedUntil = DateTime.now().toUtc().add(
+          const Duration(seconds: 30),
+        );
         return await _updateTechnicianPinState(
           technicianId,
           pinAttempts: 0,
@@ -1025,4 +1069,3 @@ class BackendService {
     }
   }
 }
-

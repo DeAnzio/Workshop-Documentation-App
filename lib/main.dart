@@ -7,6 +7,8 @@ import 'package:anzioworkshopapp/screens/main/profile_page.dart';
 import 'package:anzioworkshopapp/screens/main/session_verification_page.dart';
 import 'package:anzioworkshopapp/screens/main/listtiket_page.dart';
 import 'package:anzioworkshopapp/screens/main/sps_page.dart';
+import 'package:anzioworkshopapp/screens/main/kesanpesan_page.dart';
+import 'package:anzioworkshopapp/screens/operation/askme_page.dart';
 import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -14,15 +16,23 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 String? _initError;
 
 Future<bool> _isSecurityEnabledForCurrentUser() async {
-  final technicianId = await BackendService.getTechnicianIdWithoutSessionCheck();
+  final technicianId =
+      await BackendService.getTechnicianIdWithoutSessionCheck();
   if (technicianId == null) return false;
 
   final pinSet = await BiometricHelper.isPINSet(technicianId);
-  final fingerprintEnabled = await BiometricHelper.isFingerPrintEnabled(technicianId);
+  final fingerprintEnabled = await BiometricHelper.isFingerPrintEnabled(
+    technicianId,
+  );
   final faceIdEnabled = await BiometricHelper.isFaceIdEnabled(technicianId);
-  final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(technicianId);
+  final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(
+    technicianId,
+  );
 
-  return pinSet || fingerprintEnabled || faceIdEnabled || genericBiometricEnabled;
+  return pinSet ||
+      fingerprintEnabled ||
+      faceIdEnabled ||
+      genericBiometricEnabled;
 }
 
 void main() async {
@@ -81,15 +91,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<bool> _isSecurityEnabled() async {
-    final technicianId = await BackendService.getTechnicianIdWithoutSessionCheck();
+    final technicianId =
+        await BackendService.getTechnicianIdWithoutSessionCheck();
     if (technicianId == null) return false;
 
     final pinSet = await BiometricHelper.isPINSet(technicianId);
-    final fingerprintEnabled = await BiometricHelper.isFingerPrintEnabled(technicianId);
+    final fingerprintEnabled = await BiometricHelper.isFingerPrintEnabled(
+      technicianId,
+    );
     final faceIdEnabled = await BiometricHelper.isFaceIdEnabled(technicianId);
-    final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(technicianId);
+    final genericBiometricEnabled = await BiometricHelper.isBiometricEnabled(
+      technicianId,
+    );
 
-    return pinSet || fingerprintEnabled || faceIdEnabled || genericBiometricEnabled;
+    return pinSet ||
+        fingerprintEnabled ||
+        faceIdEnabled ||
+        genericBiometricEnabled;
   }
 
   @override
@@ -109,6 +127,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         '/verify': (context) => const SessionVerificationPage(),
         '/list-tiket': (context) => const ListTiketPage(),
         '/sps-locator': (context) => const SpsPage(),
+        '/askme': (context) => const AskMe(),
+        '/kesan-pesan': (context) => const KesanPesanPage(),
       },
     );
   }

@@ -79,7 +79,7 @@ class _HistoryPageState extends State<HistoryPage> {
               child: ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _history.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final item = _history[index];
                   final customerData = item['customers'];
