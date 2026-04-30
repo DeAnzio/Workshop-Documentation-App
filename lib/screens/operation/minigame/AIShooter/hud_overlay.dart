@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'game_engine.dart';
-import 'game_models.dart';
 
 class HudOverlay extends StatelessWidget {
   final GameEngine engine;
@@ -20,7 +19,6 @@ class HudOverlay extends StatelessWidget {
               children: [
                 _LivesWidget(lives: engine.player.lives),
                 _WaveWidget(wave: engine.wave),
-                _GyroButton(enabled: gyroEnabled, onTap: onToggleGyro),
                 _PauseButton(engine: engine),
               ],
             ),
@@ -28,6 +26,52 @@ class HudOverlay extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: _ScoreWidget(score: engine.player.score),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  gyroEnabled ? 'Gyro ON' : 'Gyro OFF',
+                  style: TextStyle(
+                    color: gyroEnabled ? Colors.cyanAccent : Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onToggleGyro,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: gyroEnabled ? Colors.cyanAccent.withOpacity(0.15) : Colors.white12,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: gyroEnabled ? Colors.cyanAccent : Colors.white24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          gyroEnabled ? Icons.gps_fixed : Icons.gps_not_fixed,
+                          color: gyroEnabled ? Colors.cyanAccent : Colors.white70,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          gyroEnabled ? 'Nonaktifkan' : 'Aktifkan',
+                          style: TextStyle(
+                            color: gyroEnabled ? Colors.cyanAccent : Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -100,33 +144,6 @@ class _WaveWidget extends StatelessWidget {
   }
 }
 
-class _GyroButton extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback onTap;
-  const _GyroButton({required this.enabled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: enabled ? Colors.cyanAccent : Colors.white12,
-          border: Border.all(color: enabled ? Colors.cyan : Colors.white30),
-        ),
-        child: Icon(
-          Icons.screen_rotation,
-          color: enabled ? Colors.black : Colors.white,
-          size: 20,
-        ),
-      ),
-    );
-  }
-}
-
 class _PauseButton extends StatelessWidget {
   final GameEngine engine;
   const _PauseButton({required this.engine});
@@ -157,10 +174,10 @@ class EnemyLegend extends StatelessWidget {
       alignment: WrapAlignment.center,
       spacing: 16,
       children: const [
-        _LegendItem(color: Color(0xFFE53935), label: 'Basic'),
-        _LegendItem(color: Color(0xFFFF6F00), label: 'Fast'),
-        _LegendItem(color: Color(0xFF6A1B9A), label: 'Tank'),
-        _LegendItem(color: Color(0xFF00838F), label: 'Shooter'),
+        _LegendItem(color: Color(0xFF10A37F), label: 'ChatGPT'),
+        _LegendItem(color: Color(0xFF4285F4), label: 'Gemini'),
+        _LegendItem(color: Color(0xFF0078D4), label: 'Copilot'),
+        _LegendItem(color: Color(0xFFCCCCCC), label: 'Grok'),
       ],
     );
   }

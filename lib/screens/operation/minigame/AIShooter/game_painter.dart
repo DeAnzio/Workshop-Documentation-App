@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'game_engine.dart';
 import 'game_models.dart';
@@ -23,7 +24,7 @@ class GamePainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF000010), Color(0xFF0A001A)],
+        colors: [Color(0xFF000510), Color(0xFF05001A)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
   }
@@ -32,7 +33,7 @@ class GamePainter extends CustomPainter {
   void _drawStars(Canvas canvas) {
     final paint = Paint();
     for (final s in engine.stars) {
-      paint.color = Color.fromRGBO(255, 255, 255, 0.4 + s.size / 6);
+      paint.color = Color.fromRGBO(200, 220, 255, 0.35 + s.size / 6);
       canvas.drawCircle(Offset(s.x, s.y), s.size / 2, paint);
     }
   }
@@ -41,169 +42,233 @@ class GamePainter extends CustomPainter {
   void _drawParticles(Canvas canvas) {
     final paint = Paint();
     for (final p in engine.particles) {
-      paint.color = p.color.withOpacity(p.life.clamp(0, 1) as double);
+      paint.color = p.color.withOpacity(p.life.clamp(0, 1));
       canvas.drawCircle(Offset(p.pos.x, p.pos.y), p.size * p.life, paint);
     }
   }
 
-  // ── Bullets ───────────────────────────────
+  // ── Bullets ── (data stream / bits theme) ─
   void _drawBullets(Canvas canvas) {
-    final playerPaint = Paint()
-      ..color = const Color(0xFF80D8FF)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    final enemyPaint = Paint()
-      ..color = const Color(0xFFFF5252)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    // Player: cyan data packets
+    final playerGlow = Paint()
+      ..color = const Color(0xFF00E5FF).withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    final playerCore = Paint()..color = const Color(0xFF00E5FF);
+
+    // Enemy: red glitch shots
+    final enemyGlow = Paint()
+      ..color = const Color(0xFFFF1744).withOpacity(0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    final enemyCore = Paint()..color = const Color(0xFFFF1744);
 
     for (final b in engine.bullets) {
-      final paint = b.isPlayer ? playerPaint : enemyPaint;
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(b.pos.x, b.pos.y),
-          width: b.width,
-          height: b.height,
-        ),
-        const Radius.circular(3),
-      );
-      canvas.drawRRect(rect, paint);
+      final glow = b.isPlayer ? playerGlow : enemyGlow;
+      final core = b.isPlayer ? playerCore : enemyCore;
+      final rect = Rect.fromCenter(center: Offset(b.pos.x, b.pos.y), width: b.width, height: b.height);
+      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+      canvas.drawRRect(rrect, glow);
+      canvas.drawRRect(rrect, core);
     }
   }
 
-  // ── Enemies ───────────────────────────────
+  // ── Enemies (AI logos) ────────────────────
   void _drawEnemies(Canvas canvas) {
     for (final e in engine.enemies) {
       canvas.save();
       canvas.translate(e.pos.x, e.pos.y);
-      _drawEnemyShape(canvas, e);
+      _drawAILogo(canvas, e);
       _drawHealthBar(canvas, e);
       canvas.restore();
     }
   }
 
-  void _drawEnemyShape(Canvas canvas, Enemy e) {
-    final paint = Paint()..color = e.color;
-    final glowPaint = Paint()
-      ..color = e.color.withOpacity(0.4)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    final darkPaint = Paint()..color = e.color.withOpacity(0.6);
+  void _drawAILogo(Canvas canvas, Enemy e) {
+    final glow = Paint()
+      ..color = e.color.withOpacity(0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
+    canvas.drawCircle(Offset.zero, e.width * 0.55, glow);
 
     switch (e.type) {
       case EnemyType.basic:
-        _drawBasicEnemy(canvas, paint, glowPaint, darkPaint, e.width);
+        _drawChatGPTLogo(canvas, e.width * 0.46, e.color);
         break;
       case EnemyType.fast:
-        _drawFastEnemy(canvas, paint, glowPaint, darkPaint, e.width);
+        _drawGeminiLogo(canvas, e.width * 0.46, e.color);
         break;
       case EnemyType.tank:
-        _drawTankEnemy(canvas, paint, glowPaint, darkPaint, e.width);
+        _drawCopilotLogo(canvas, e.width * 0.46, e.color);
         break;
       case EnemyType.shooter:
-        _drawShooterEnemy(canvas, paint, glowPaint, darkPaint, e.width);
+        _drawGrokLogo(canvas, e.width * 0.46, e.color);
         break;
     }
   }
 
-  void _drawBasicEnemy(Canvas c, Paint p, Paint glow, Paint dark, double w) {
-    final half = w / 2;
-    // Glow
-    c.drawOval(Rect.fromCenter(center: Offset.zero, width: w, height: w * 0.8), glow);
-    // Wings
-    final wingPath = Path()
-      ..moveTo(0, -half * 0.5)
-      ..lineTo(-half, half * 0.4)
-      ..lineTo(-half * 0.5, half * 0.5)
-      ..lineTo(0, half * 0.2)
-      ..lineTo(half * 0.5, half * 0.5)
-      ..lineTo(half, half * 0.4)
-      ..close();
-    c.drawPath(wingPath, p);
-    // Body
-    final bodyPath = Path()
-      ..moveTo(0, -half * 0.8)
-      ..lineTo(-half * 0.3, half * 0.5)
-      ..lineTo(0, half * 0.3)
-      ..lineTo(half * 0.3, half * 0.5)
-      ..close();
-    c.drawPath(bodyPath, dark);
-    // Cockpit
-    c.drawOval(Rect.fromCenter(center: Offset(0, -half * 0.2), width: half * 0.4, height: half * 0.5),
-        Paint()..color = Colors.white.withOpacity(0.7));
-  }
-
-  void _drawFastEnemy(Canvas c, Paint p, Paint glow, Paint dark, double w) {
-    final half = w / 2;
-    c.drawOval(Rect.fromCenter(center: Offset.zero, width: w * 0.8, height: w), glow);
-    final path = Path()
-      ..moveTo(0, -half)
-      ..lineTo(-half * 0.6, half * 0.2)
-      ..lineTo(-half * 0.9, half)
-      ..lineTo(0, half * 0.5)
-      ..lineTo(half * 0.9, half)
-      ..lineTo(half * 0.6, half * 0.2)
-      ..close();
-    c.drawPath(path, p);
-    c.drawPath(path, dark..color = p.color.withOpacity(0.4));
-    // Engine glow
-    c.drawOval(
-        Rect.fromCenter(center: Offset(0, half * 0.7), width: half * 0.5, height: half * 0.3),
-        Paint()..color = Colors.orangeAccent.withOpacity(0.9));
-  }
-
-  void _drawTankEnemy(Canvas c, Paint p, Paint glow, Paint dark, double w) {
-    final half = w / 2;
-    c.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: w, height: w * 0.9), const Radius.circular(8)),
-        glow);
-    c.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: w, height: w * 0.9), const Radius.circular(8)),
-        p);
-    c.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: w * 0.6, height: w * 0.7), const Radius.circular(5)),
-        dark..color = p.color.withOpacity(0.8));
-    // Armor lines
-    final linePaint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
+  // ── ChatGPT logo (hexagon + swirl) ────────
+  void _drawChatGPTLogo(Canvas canvas, double r, Color col) {
+    // Dark hexagon background
+    final bgPaint = Paint()..color = const Color(0xFF10A37F).withOpacity(0.9);
+    final borderPaint = Paint()
+      ..color = const Color(0xFF10A37F)
+      ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
-    for (int i = -1; i <= 1; i++) {
-      c.drawLine(Offset(i * half * 0.5, -half * 0.4), Offset(i * half * 0.5, half * 0.4), linePaint);
-    }
-    // Cockpit
-    c.drawOval(Rect.fromCenter(center: Offset(0, -half * 0.15), width: half * 0.5, height: half * 0.4),
-        Paint()..color = Colors.white.withOpacity(0.6));
+    final hexPath = _hexPath(r);
+    canvas.drawPath(hexPath, bgPaint);
+    canvas.drawPath(hexPath, borderPaint);
+
+    // Swirl symbol
+    final swirlPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.13
+      ..strokeCap = StrokeCap.round;
+    final sr = r * 0.5;
+    canvas.drawArc(Rect.fromCircle(center: Offset(0, -sr * 0.15), radius: sr * 0.7), pi * 0.1, pi * 1.7, false, swirlPaint);
+    canvas.drawArc(Rect.fromCircle(center: Offset(0, sr * 0.15), radius: sr * 0.7), pi * 1.1, pi * 1.7, false, swirlPaint);
   }
 
-  void _drawShooterEnemy(Canvas c, Paint p, Paint glow, Paint dark, double w) {
-    final half = w / 2;
-    c.drawOval(Rect.fromCenter(center: Offset.zero, width: w * 1.2, height: w * 0.8), glow);
-    // Body
-    final path = Path()
-      ..moveTo(0, -half * 0.8)
-      ..lineTo(-half * 0.5, half * 0.5)
-      ..lineTo(0, half * 0.2)
-      ..lineTo(half * 0.5, half * 0.5)
-      ..close();
-    c.drawPath(path, p);
-    // Side cannons
-    final cannonPaint = Paint()..color = p.color;
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(-half * 0.8, 0), width: half * 0.3, height: half * 0.8), const Radius.circular(4)), cannonPaint);
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(half * 0.8, 0), width: half * 0.3, height: half * 0.8), const Radius.circular(4)), cannonPaint);
-    c.drawOval(Rect.fromCenter(center: Offset(0, 0), width: half * 0.5, height: half * 0.5),
-        Paint()..color = Colors.cyanAccent.withOpacity(0.8));
+  // ── Gemini logo (two-tone diamond) ────────
+  void _drawGeminiLogo(Canvas canvas, double r, Color col) {
+    final bgPaint = Paint()..color = const Color(0xFF1A1A2E).withOpacity(0.95);
+    final circle = Rect.fromCircle(center: Offset.zero, radius: r);
+    canvas.drawOval(circle, bgPaint);
+
+    // Gemini star shape: 4-pointed star
+    final starPaint1 = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(-r, 0), Offset(r, 0),
+        [const Color(0xFF4285F4), const Color(0xFF9C27B0)],
+      );
+    final starPaint2 = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(0, -r), Offset(0, r),
+        [const Color(0xFF4FC3F7), const Color(0xFFE040FB)],
+      );
+
+    final starPath1 = _fourPointStar(r * 0.82, r * 0.18, horizontal: true);
+    final starPath2 = _fourPointStar(r * 0.82, r * 0.18, horizontal: false);
+    canvas.drawPath(starPath1, starPaint1);
+    canvas.drawPath(starPath2, starPaint2);
+  }
+
+  // ── Copilot logo (two overlapping circles) ─
+  void _drawCopilotLogo(Canvas canvas, double r, Color col) {
+    final bgPaint = Paint()..color = const Color(0xFF1A1A1A).withOpacity(0.95);
+    canvas.drawOval(Rect.fromCircle(center: Offset.zero, radius: r), bgPaint);
+
+    final borderPaint = Paint()
+      ..color = col
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawOval(Rect.fromCircle(center: Offset.zero, radius: r), borderPaint);
+
+    // Copilot "face" — two overlapping ovals (helmet-like)
+    final leftPaint = Paint()
+      ..color = const Color(0xFF0078D4)
+      ..style = PaintingStyle.fill;
+    final rightPaint = Paint()
+      ..color = const Color(0xFF50E6FF)
+      ..style = PaintingStyle.fill;
+
+    final or_ = r * 0.52;
+    final ox = r * 0.22;
+    final oy = r * 0.05;
+    canvas.drawOval(Rect.fromCenter(center: Offset(-ox, oy), width: or_ * 1.4, height: or_ * 1.7), leftPaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(ox, oy), width: or_ * 1.4, height: or_ * 1.7), rightPaint);
+
+    // Visor highlight
+    final visorPaint = Paint()..color = Colors.white.withOpacity(0.25);
+    canvas.drawOval(Rect.fromCenter(center: Offset(0, -oy * 0.5), width: r * 0.55, height: r * 0.4), visorPaint);
+
+    // Eyes
+    final eyePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(-r * 0.2, r * 0.08), r * 0.1, eyePaint);
+    canvas.drawCircle(Offset(r * 0.2, r * 0.08), r * 0.1, eyePaint);
+
+    // Pupils
+    final pupilPaint = Paint()..color = const Color(0xFF001A33);
+    canvas.drawCircle(Offset(-r * 0.2, r * 0.1), r * 0.055, pupilPaint);
+    canvas.drawCircle(Offset(r * 0.2, r * 0.1), r * 0.055, pupilPaint);
+  }
+
+  // ── Grok logo (X mark) ────────────────────
+  void _drawGrokLogo(Canvas canvas, double r, Color col) {
+    final bgPaint = Paint()..color = const Color(0xFF000000).withOpacity(0.92);
+    canvas.drawOval(Rect.fromCircle(center: Offset.zero, radius: r), bgPaint);
+
+    final borderPaint = Paint()
+      ..color = Colors.white.withOpacity(0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawOval(Rect.fromCircle(center: Offset.zero, radius: r), borderPaint);
+
+    // Bold "X" (xAI / Grok logo)
+    final xPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = r * 0.28
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final xr = r * 0.52;
+    canvas.drawLine(Offset(-xr, -xr), Offset(xr, xr), xPaint);
+    canvas.drawLine(Offset(xr, -xr), Offset(-xr, xr), xPaint);
+
+    // Inner dot
+    canvas.drawCircle(Offset.zero, r * 0.09, Paint()..color = const Color(0xFF888888));
+  }
+
+  // ── Path helpers ──────────────────────────
+  Path _hexPath(double r) {
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = pi / 6 + i * pi / 3;
+      final x = r * cos(angle);
+      final y = r * sin(angle);
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+    return path..close();
+  }
+
+  Path _fourPointStar(double outerR, double innerR, {required bool horizontal}) {
+    final path = Path();
+    final angles = horizontal
+        ? [0.0, pi / 2, pi, 3 * pi / 2]
+        : [pi / 4, 3 * pi / 4, 5 * pi / 4, 7 * pi / 4];
+
+    for (int i = 0; i < 4; i++) {
+      final tipAngle = angles[i];
+      final midAngle = tipAngle + pi / 4;
+      final tx = outerR * cos(tipAngle);
+      final ty = outerR * sin(tipAngle);
+      final mx = innerR * cos(midAngle);
+      final my = innerR * sin(midAngle);
+      if (i == 0) {
+        path.moveTo(tx, ty);
+      } else {
+        path.lineTo(mx, my);
+        path.lineTo(tx, ty);
+      }
+    }
+    // Close back through midpoints
+    path.lineTo(innerR * cos(angles[0] - pi / 4), innerR * sin(angles[0] - pi / 4));
+    return path..close();
   }
 
   void _drawHealthBar(Canvas c, Enemy e) {
     if (e.maxHealth <= 1) return;
     final w = e.width;
-    final barW = w * 0.9;
+    final barW = w * 0.95;
     final barH = 5.0;
-    final y = e.height / 2 + 6;
-    final bg = Paint()..color = Colors.white.withOpacity(0.2);
-    final fg = Paint()..color = Color.lerp(Colors.red, Colors.green, e.health / e.maxHealth)!;
+    final y = e.height / 2 + 8;
+    final bg = Paint()..color = Colors.white.withOpacity(0.15);
+    final fg = Paint()..color = Color.lerp(const Color(0xFFFF1744), const Color(0xFF00E676), e.health / e.maxHealth)!;
     c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(0, y), width: barW, height: barH), const Radius.circular(3)), bg);
     c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(-barW / 2, y - barH / 2, barW * (e.health / e.maxHealth), barH), const Radius.circular(3)), fg);
   }
 
-  // ── Player ────────────────────────────────
+  // ══════════════════════════════════════════
+  // ── Player: RAM Chip ──────────────────────
+  // ══════════════════════════════════════════
   void _drawPlayer(Canvas canvas) {
     final p = engine.player;
     if (p.isInvincible && (DateTime.now().millisecondsSinceEpoch ~/ 100) % 2 == 0) return;
@@ -211,63 +276,136 @@ class GamePainter extends CustomPainter {
     canvas.save();
     canvas.translate(p.pos.x, p.pos.y);
 
-    // Engine glow
-    final engineGlow = Paint()
-      ..color = const Color(0xFF40C4FF).withOpacity(0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawOval(Rect.fromCenter(center: const Offset(0, 20), width: 20, height: 30), engineGlow);
+    // ── Thruster flames (bottom) ─────────────
+    final flameTime = DateTime.now().millisecondsSinceEpoch / 80.0;
+    final flicker = 0.85 + 0.15 * sin(flameTime);
 
-    // Engine flame
-    final flamePath = Path()
-      ..moveTo(-8, 18)
-      ..lineTo(0, 35)
-      ..lineTo(8, 18);
-    canvas.drawPath(flamePath, Paint()..color = Colors.orangeAccent.withOpacity(0.9));
-    canvas.drawPath(flamePath, Paint()..color = Colors.yellow.withOpacity(0.5)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    final flamePaint1 = Paint()
+      ..color = const Color(0xFFFF6D00).withOpacity(0.9 * flicker)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    final flamePaint2 = Paint()
+      ..color = const Color(0xFFFFFF00).withOpacity(0.7 * flicker);
 
-    // Body glow
-    final bodyGlow = Paint()
-      ..color = const Color(0xFF40C4FF).withOpacity(0.25)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 44, height: 54), bodyGlow);
+    // Left thruster
+    _drawFlame(canvas, const Offset(-14, 18), flicker, flamePaint1, flamePaint2);
+    // Right thruster
+    _drawFlame(canvas, const Offset(14, 18), flicker, flamePaint1, flamePaint2);
 
-    // Fuselage
-    final bodyPath = Path()
-      ..moveTo(0, -27)
-      ..lineTo(-8, 10)
-      ..lineTo(-4, 20)
-      ..lineTo(4, 20)
-      ..lineTo(8, 10)
-      ..close();
-    canvas.drawPath(bodyPath, Paint()..color = const Color(0xFF1565C0));
-
-    // Wings
-    final wingPath = Path()
-      ..moveTo(-8, 5)
-      ..lineTo(-22, 18)
-      ..lineTo(-14, 22)
-      ..lineTo(-4, 18)
-      ..moveTo(8, 5)
-      ..lineTo(22, 18)
-      ..lineTo(14, 22)
-      ..lineTo(4, 18);
-    canvas.drawPath(wingPath, Paint()..color = const Color(0xFF1E88E5));
-
-    // Cockpit
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(0, -12), width: 10, height: 14),
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Colors.lightBlueAccent, Color(0xFF1565C0)],
-        ).createShader(Rect.fromCenter(center: const Offset(0, -12), width: 10, height: 14)),
+    // ── Chip body glow ────────────────────────
+    final chipGlow = Paint()
+      ..color = const Color(0xFF00E5FF).withOpacity(0.22)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 52, height: 40), const Radius.circular(6)),
+      chipGlow,
     );
 
-    // Wing tip lights
-    final tipPaint = Paint()..color = Colors.cyanAccent;
-    canvas.drawCircle(const Offset(-22, 18), 2.5, tipPaint);
-    canvas.drawCircle(const Offset(22, 18), 2.5, tipPaint);
+    // ── PCB substrate (dark green board) ─────
+    final pcbPaint = Paint()..color = const Color(0xFF1B5E20);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 48, height: 36), const Radius.circular(5)),
+      pcbPaint,
+    );
+
+    // PCB texture lines
+    final tracePaint = Paint()
+      ..color = const Color(0xFF2E7D32).withOpacity(0.8)
+      ..strokeWidth = 1.0;
+    for (double tx = -20; tx <= 20; tx += 8) {
+      canvas.drawLine(Offset(tx, -18), Offset(tx, 18), tracePaint);
+    }
+    for (double ty = -14; ty <= 14; ty += 7) {
+      canvas.drawLine(const Offset(-24, 0), Offset(0, ty), tracePaint);
+      canvas.drawLine(const Offset(24, 0), Offset(0, ty), tracePaint);
+    }
+
+    // ── Chip package (black IC body) ─────────
+    final icPaint = Paint()..color = const Color(0xFF1A1A1A);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 40, height: 28), const Radius.circular(4)),
+      icPaint,
+    );
+
+    // ── Chip border ───────────────────────────
+    final icBorder = Paint()
+      ..color = const Color(0xFF00E5FF).withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 40, height: 28), const Radius.circular(4)),
+      icBorder,
+    );
+
+    // ── Memory pins (left & right sides) ─────
+    final pinPaint = Paint()
+      ..color = const Color(0xFFB8860B)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    final pinGlow = Paint()
+      ..color = const Color(0xFFFFD700).withOpacity(0.6)
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+
+    final pinYs = [-10.0, -4.0, 2.0, 8.0];
+    for (final py in pinYs) {
+      // Left pins
+      canvas.drawLine(Offset(-24, py), Offset(-20, py), pinGlow);
+      canvas.drawLine(Offset(-24, py), Offset(-20, py), pinPaint);
+      // Right pins
+      canvas.drawLine(Offset(20, py), Offset(24, py), pinGlow);
+      canvas.drawLine(Offset(20, py), Offset(24, py), pinPaint);
+    }
+
+    // ── RAM label ─────────────────────────────
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'RAM',
+        style: TextStyle(
+          color: Color(0xFF00E5FF),
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    textPainter.paint(canvas, Offset(-textPainter.width / 2, -5));
+
+    // ── Tiny LED indicators ───────────────────
+    final ledActive = Paint()
+      ..color = const Color(0xFF00FF41)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    final ledDim = Paint()..color = const Color(0xFF003300);
+    final ledPhase = (DateTime.now().millisecondsSinceEpoch ~/ 200) % 4;
+    final ledXs = [-12.0, -4.0, 4.0, 12.0];
+    for (int i = 0; i < 4; i++) {
+      canvas.drawCircle(Offset(ledXs[i], 9), 2.0, i == ledPhase ? ledActive : ledDim);
+    }
+
+    // ── Corner notch (IC notch mark) ─────────
+    final notchPaint = Paint()..color = const Color(0xFF333333);
+    canvas.drawOval(Rect.fromCenter(center: const Offset(-18, -12), width: 5, height: 5), notchPaint);
 
     canvas.restore();
+  }
+
+  void _drawFlame(Canvas canvas, Offset origin, double flicker, Paint paint1, Paint paint2) {
+    final h = 14.0 * flicker;
+    final w = 6.0;
+    final flamePath = Path()
+      ..moveTo(origin.dx - w / 2, origin.dy)
+      ..quadraticBezierTo(origin.dx - w * 0.8, origin.dy + h * 0.5, origin.dx, origin.dy + h)
+      ..quadraticBezierTo(origin.dx + w * 0.8, origin.dy + h * 0.5, origin.dx + w / 2, origin.dy)
+      ..close();
+    canvas.drawPath(flamePath, paint1);
+
+    final innerPath = Path()
+      ..moveTo(origin.dx - w * 0.3, origin.dy)
+      ..quadraticBezierTo(origin.dx - w * 0.4, origin.dy + h * 0.45, origin.dx, origin.dy + h * 0.7)
+      ..quadraticBezierTo(origin.dx + w * 0.4, origin.dy + h * 0.45, origin.dx + w * 0.3, origin.dy)
+      ..close();
+    canvas.drawPath(innerPath, paint2);
   }
 
   @override

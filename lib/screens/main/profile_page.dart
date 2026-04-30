@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
-import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/timezone_service.dart';
 import 'package:anzioworkshopapp/screens/utils/moresecure_page.dart';
 import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
@@ -82,6 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _technicianData = data;
         _nameController.text = data['name'] ?? '';
         _phoneController.text = data['no_hp'] ?? '';
+        _selectedCurrency = data['currency']?.toString() ?? 'IDR';
         final savedTimeZone = data['preferred_time']?.toString();
         _selectedTimeZone = (savedTimeZone != null && TimeZoneService.isValidTimeZone(savedTimeZone))
             ? savedTimeZone
@@ -140,6 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
         phoneNumber: _phoneController.text,
         profilePhotoUrl: photoUrl,
         preferredTime: _selectedTimeZone,
+        currency: _selectedCurrency,
       );
 
       if (!success) {
@@ -201,8 +202,12 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Profile',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF080E1A),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

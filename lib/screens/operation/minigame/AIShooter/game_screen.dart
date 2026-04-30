@@ -36,11 +36,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _onGyroEvent(GyroscopeEvent event) {
     if (!_gyroEnabled || _engine.state != GameState.playing) return;
-
     const smoothing = 0.82;
-    const horizontalScale = 48.0;
-    const verticalScale = 28.0;
     const deadzone = 0.02;
+    const horizontalScale = 45.0;
+    const verticalScale = 28.0;
 
     _smoothedGyroX = _smoothedGyroX * smoothing + event.y * (1 - smoothing);
     _smoothedGyroY = _smoothedGyroY * smoothing + event.x * (1 - smoothing);
@@ -48,9 +47,16 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final rawDx = _smoothedGyroX.abs() > deadzone ? _smoothedGyroX : 0.0;
     final rawDy = _smoothedGyroY.abs() > deadzone ? _smoothedGyroY : 0.0;
 
-    final dx = (rawDx * horizontalScale).clamp(-30.0, 30.0);
+    final dx = (rawDx * horizontalScale).clamp(-35.0, 35.0);
     final dy = (rawDy * verticalScale).clamp(-22.0, 22.0);
+
     _engine.onGyroInput(dx, dy);
+  }
+
+  void _toggleGyro() {
+    setState(() {
+      _gyroEnabled = !_gyroEnabled;
+    });
   }
 
   @override
@@ -101,11 +107,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     HudOverlay(
                       engine: _engine,
                       gyroEnabled: _gyroEnabled,
-                      onToggleGyro: () {
-                        setState(() {
-                          _gyroEnabled = !_gyroEnabled;
-                        });
-                      },
+                      onToggleGyro: _toggleGyro,
                     ),
 
                   // Overlays

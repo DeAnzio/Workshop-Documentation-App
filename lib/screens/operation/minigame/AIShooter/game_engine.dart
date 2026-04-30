@@ -112,7 +112,7 @@ class GameEngine extends ChangeNotifier {
     if (state != GameState.playing) return;
 
     final now = DateTime.now();
-    final dt = min((_lastTick == null ? 0 : now.difference(_lastTick!).inMicroseconds / 1e6), 0.05).toDouble();
+    final dt = min((_lastTick == null ? 0.0 : now.difference(_lastTick!).inMicroseconds / 1e6), 0.05).toDouble();
     _lastTick = now;
 
     _updateStars(dt);
@@ -202,7 +202,9 @@ class GameEngine extends ChangeNotifier {
 
   // ── Particles ─────────────────────────────
   void _updateParticles(double dt) {
-    for (final p in particles) p.update(dt);
+    for (final p in particles) {
+      p.update(dt);
+    }
   }
 
   // ── Collisions ────────────────────────────

@@ -141,13 +141,13 @@ class Enemy {
   Color get color {
     switch (type) {
       case EnemyType.basic:
-        return const Color(0xFFE53935);
+        return const Color(0xFF10A37F); // ChatGPT green
       case EnemyType.fast:
-        return const Color(0xFFFF6F00);
+        return const Color(0xFF4285F4); // Gemini blue
       case EnemyType.tank:
-        return const Color(0xFF6A1B9A);
+        return const Color(0xFF0078D4); // Copilot blue
       case EnemyType.shooter:
-        return const Color(0xFF00838F);
+        return const Color(0xFFCCCCCC); // Grok/xAI white-grey
     }
   }
 
