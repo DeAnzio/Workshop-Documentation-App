@@ -103,8 +103,12 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History'),
-        backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'History Tiket',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF080E1A),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

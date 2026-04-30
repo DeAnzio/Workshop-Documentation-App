@@ -153,8 +153,12 @@ class _AskMeState extends State<AskMe> {
 
   PreferredSizeWidget buildHeader() {
     return AppBar(
-      title: const Text("Gemini Chat Flutter"),
-      backgroundColor: Colors.blue,
+      iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'AI Chat',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF080E1A),
     );
   }
 

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/screens/utils/Location_help.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
-import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
 class Inputdata extends StatelessWidget {
@@ -12,11 +11,7 @@ class Inputdata extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Coba-Coba Flutter',
-      home: const InputDataPelanggan(),
-    );
+    return const InputDataPelanggan();
   }
 }
 
@@ -73,51 +68,16 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
     return double.tryParse(cleaned) ?? 0.0;
   }
 
-  Future<void> _setSelectedCurrency(String newCurrency) async {
-    final oldCurrency = _selectedCurrency;
-    if (newCurrency == oldCurrency) return;
-
-    final biaya = _estimasiBiayaController.text.isNotEmpty
-        ? _parseNumericInput(_estimasiBiayaController.text)
-        : 0.0;
-    final dp = _nominalDpController.text.isNotEmpty
-        ? _parseNumericInput(_nominalDpController.text)
-        : 0.0;
-
-    final convertedBiaya = biaya > 0
-        ? await CurrencyService.convertCurrency(biaya, oldCurrency, newCurrency)
-        : 0.0;
-    final convertedDp = dp > 0
-        ? await CurrencyService.convertCurrency(dp, oldCurrency, newCurrency)
-        : 0.0;
-
-    if (!mounted) return;
-    setState(() {
-      _selectedCurrency = newCurrency;
-      _estimasiBiayaController.text = biaya > 0
-          ? convertedBiaya.toStringAsFixed(2)
-          : _estimasiBiayaController.text;
-      _nominalDpController.text = dp > 0
-          ? convertedDp.toStringAsFixed(2)
-          : _nominalDpController.text;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'Input Data Pelanggan',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            fontStyle: FontStyle.italic,
-            letterSpacing: 1.5,
-          ),
+          style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+        backgroundColor: const Color(0xFF080E1A),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -407,21 +367,6 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   }
                   return null;
                 },
-              ),
-              const SizedBox(height: 16),
-
-              // Currency Selector
-              const Text(
-                'Mata Uang',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              CurrencySelector(
-                selectedCurrency: _selectedCurrency,
-                onCurrencyChanged: (currency) {
-                  _setSelectedCurrency(currency);
-                },
-                showFlag: true,
               ),
               const SizedBox(height: 16),
 

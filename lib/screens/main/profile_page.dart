@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
+import 'package:anzioworkshopapp/services/currency_service.dart';
+import 'package:anzioworkshopapp/services/timezone_service.dart';
 import 'package:anzioworkshopapp/screens/utils/moresecure_page.dart';
+import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -23,6 +28,19 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   XFile? _selectedImage;
+  String _selectedCurrency = 'IDR';
+  String _selectedTimeZone = 'WIB';
+  Timer? _timeRefreshTimer;
+
+  List<String> get _timeZones => [
+        'WIB',
+        'WITA',
+        'WIT',
+        'London',
+        'UTC',
+        'New York',
+        'Tokyo',
+      ];
 
   @override
   void initState() {
@@ -64,9 +82,14 @@ class _ProfilePageState extends State<ProfilePage> {
         _technicianData = data;
         _nameController.text = data['name'] ?? '';
         _phoneController.text = data['no_hp'] ?? '';
+        final savedTimeZone = data['preferred_time']?.toString();
+        _selectedTimeZone = (savedTimeZone != null && TimeZoneService.isValidTimeZone(savedTimeZone))
+            ? savedTimeZone
+            : 'WIB';
         //_securityEnabled = data['security_enabled'] ?? false;
         _loading = false;
       });
+      _startTimeRefresh();
     } catch (e) {
       setState(() {
         _loading = false;
@@ -116,6 +139,7 @@ class _ProfilePageState extends State<ProfilePage> {
         name: _nameController.text,
         phoneNumber: _phoneController.text,
         profilePhotoUrl: photoUrl,
+        preferredTime: _selectedTimeZone,
       );
 
       if (!success) {
@@ -151,6 +175,26 @@ class _ProfilePageState extends State<ProfilePage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
     }
+  }
+
+  void _setSelectedCurrency(String currency) {
+    setState(() {
+      _selectedCurrency = currency;
+    });
+  }
+
+  void _startTimeRefresh() {
+    _timeRefreshTimer?.cancel();
+    _timeRefreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
+  }
+
+  void _setSelectedTimeZone(String value) {
+    setState(() {
+      _selectedTimeZone = value;
+    });
   }
 
   @override
@@ -249,6 +293,96 @@ class _ProfilePageState extends State<ProfilePage> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Preferensi Mata Uang',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            CurrencySelector(
+                              selectedCurrency: _selectedCurrency,
+                              onCurrencyChanged: _setSelectedCurrency,
+                              showFlag: true,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Text('Contoh 1000 IDR = '),
+                                Expanded(
+                                  child: CurrencyConverter(
+                                    baseAmount: 1000,
+                                    baseCurrency: 'IDR',
+                                    targetCurrency: _selectedCurrency,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Zona Waktu',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: _selectedTimeZone,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                              ),
+                              items: _timeZones.map((zone) {
+                                return DropdownMenuItem<String>(
+                                  value: zone,
+                                  child: Text(TimeZoneService.zoneLabel(zone)),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  _setSelectedTimeZone(value);
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Waktu sekarang: ${TimeZoneService.formatZoneTime(_selectedTimeZone)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
                     // Save Button
@@ -268,6 +402,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void dispose() {
+    _timeRefreshTimer?.cancel();
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();

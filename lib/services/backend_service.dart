@@ -52,6 +52,7 @@ class BackendService {
         avatar_url TEXT,
         no_hp TEXT,
         kesanpesan TEXT,
+        preferred_time TEXT,
         pin_hash TEXT,
         pin_attempts INTEGER DEFAULT 0,
         pin_locked_until TEXT,
@@ -134,6 +135,16 @@ class BackendService {
     if (!hasKesanPesan) {
       try {
         await db.execute('ALTER TABLE technicians ADD COLUMN kesanpesan TEXT');
+      } catch (_) {
+        // ignore if column already exists or sqlite does not support this addition
+      }
+    }
+    final hasPreferredTime = columns.any(
+      (column) => column['name'] == 'preferred_time',
+    );
+    if (!hasPreferredTime) {
+      try {
+        await db.execute('ALTER TABLE technicians ADD COLUMN preferred_time TEXT');
       } catch (_) {
         // ignore if column already exists or sqlite does not support this addition
       }
@@ -945,6 +956,7 @@ class BackendService {
     String? phoneNumber,
     String? profilePhotoUrl,
     String? kesanPesan,
+    String? preferredTime,
     bool? securityEnabled,
   }) async {
     try {
@@ -954,6 +966,7 @@ class BackendService {
       if (phoneNumber != null) updateData['no_hp'] = phoneNumber;
       if (profilePhotoUrl != null) updateData['avatar_url'] = profilePhotoUrl;
       if (kesanPesan != null) updateData['kesanpesan'] = kesanPesan;
+      if (preferredTime != null) updateData['preferred_time'] = preferredTime;
       if (updateData.isEmpty) return false;
       updateData['updated_at'] = DateTime.now().toIso8601String();
       final count = await db.update(

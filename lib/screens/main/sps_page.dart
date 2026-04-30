@@ -16,8 +16,12 @@ class _SpsPageState extends State<SpsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cari Toko Sparepart'),
-        backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Cari Sparepart Shop',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF080E1A),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -25,7 +29,7 @@ class _SpsPageState extends State<SpsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Cari Toko Sparepart Komputer Terdekat',
+              'Cari Computer Sparepart Shop Terdekat',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),

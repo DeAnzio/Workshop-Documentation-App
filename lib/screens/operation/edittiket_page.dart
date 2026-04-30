@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
-import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
 class EditTiketPage extends StatefulWidget {
@@ -41,7 +40,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
   String? _jenisService;
   String? _prioritas;
   String _selectedCurrency = 'IDR'; // Default currency
-  late String _originalCurrency;
 
   final List<String> _statusServiceList = [
     'masuk',
@@ -57,63 +55,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
     'Maintenance',
   ];
   final List<String> _prioritasList = ['normal', 'urgent', 'express'];
-
-  double _parseNumericInput(String value) {
-    final cleaned = value.replaceAll(RegExp(r'[^0-9\-,\.]'), '').replaceAll(',', '.');
-    return double.tryParse(cleaned) ?? 0.0;
-  }
-
-  Future<void> _setSelectedCurrency(String newCurrency) async {
-    final oldCurrency = _selectedCurrency;
-    if (newCurrency == oldCurrency) return;
-
-    final biaya = _biayaJasaController.text.isNotEmpty
-        ? _parseNumericInput(_biayaJasaController.text)
-        : 0.0;
-    final convertedBiaya = biaya > 0
-        ? await CurrencyService.convertCurrency(biaya, oldCurrency, newCurrency)
-        : 0.0;
-
-    final spareparts = <Map<String, dynamic>>[];
-    for (final sparepart in _spareparts) {
-      final harga = (sparepart['harga'] as num?)?.toDouble() ?? 0.0;
-      if (harga <= 0) {
-        spareparts.add(sparepart);
-        continue;
-      }
-      final convertedHarga = await CurrencyService.convertCurrency(
-        harga,
-        oldCurrency,
-        newCurrency,
-      );
-      spareparts.add({...sparepart, 'harga': convertedHarga});
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _selectedCurrency = newCurrency;
-      _biayaJasaController.text = biaya > 0
-          ? convertedBiaya.toStringAsFixed(2)
-          : _biayaJasaController.text;
-      _spareparts = spareparts;
-    });
-  }
-
-  Future<void> _updateSparepartsCurrencyInDatabase(
-    String fromCurrency,
-    String toCurrency,
-  ) async {
-    if (fromCurrency == toCurrency) return;
-    for (final sparepart in _spareparts) {
-      final sparepartId = sparepart['id']?.toString();
-      final harga = (sparepart['harga'] as num?)?.toDouble() ?? 0.0;
-      if (sparepartId == null || sparepartId.isEmpty) continue;
-      await BackendService.updateServiceSparepart(
-        sparepartId,
-        harga: harga,
-      );
-    }
-  }
 
   @override
   void initState() {
@@ -145,7 +86,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
     _jenisService = widget.tiketData['jenis_service'] ?? '';
     _prioritas = widget.tiketData['prioritas'] ?? 'normal';
     _selectedCurrency = widget.tiketData['currency'] ?? 'IDR';
-    _originalCurrency = _selectedCurrency;
   }
 
   Future<void> _loadPhotos() async {
@@ -689,14 +629,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
         throw Exception('Tiket ID tidak ditemukan');
       }
 
-      if (_originalCurrency != _selectedCurrency) {
-        await _updateSparepartsCurrencyInDatabase(
-          _originalCurrency,
-          _selectedCurrency,
-        );
-        _originalCurrency = _selectedCurrency;
-      }
-
       final success = await BackendService.updateServiceOrder(
         tiketId,
         statusService: _statusService,
@@ -899,24 +831,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
                         prefixIcon: Icon(Icons.medical_information),
                       ),
                       maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Currency Selector
-                    const Text(
-                      'Mata Uang',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    CurrencySelector(
-                      selectedCurrency: _selectedCurrency,
-                      onCurrencyChanged: (currency) {
-                        _setSelectedCurrency(currency);
-                      },
-                      showFlag: true,
                     ),
                     const SizedBox(height: 16),
 

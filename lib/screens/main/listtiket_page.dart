@@ -153,8 +153,12 @@ class _ListTiketPageState extends State<ListTiketPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daftar Tiket'),
-        backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Daftar Tiket',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF080E1A),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

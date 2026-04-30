@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:anzioworkshopapp/screens/main/login_page.dart';
-import 'package:anzioworkshopapp/screens/main/register_page.dart';
+import 'package:anzioworkshopapp/screens/security/login_page.dart';
+import 'package:anzioworkshopapp/screens/security/register_page.dart';
 import 'package:anzioworkshopapp/screens/main/menu_page.dart';
 import 'package:anzioworkshopapp/screens/main/history_page.dart';
 import 'package:anzioworkshopapp/screens/main/profile_page.dart';
-import 'package:anzioworkshopapp/screens/main/session_verification_page.dart';
+import 'package:anzioworkshopapp/screens/security/session_verification_page.dart';
 import 'package:anzioworkshopapp/screens/main/listtiket_page.dart';
 import 'package:anzioworkshopapp/screens/main/sps_page.dart';
 import 'package:anzioworkshopapp/screens/main/kesanpesan_page.dart';
 import 'package:anzioworkshopapp/screens/operation/askme_page.dart';
-import 'package:anzioworkshopapp/screens/operation/minigame/game_screen.dart';
+import 'package:anzioworkshopapp/screens/operation/inputtiket_page.dart';
+import 'package:anzioworkshopapp/screens/operation/minigame/Trivia_page.dart';
+import 'package:anzioworkshopapp/screens/operation/minigame/AIShooter/game_screen.dart';
 import 'package:anzioworkshopapp/screens/operation/minigame/minigame_page.dart';
 import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
@@ -130,8 +132,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         '/list-tiket': (context) => const ListTiketPage(),
         '/sps-locator': (context) => const SpsPage(),
         '/askme': (context) => const AskMe(),
+        '/input-tiket': (context) => const Inputdata(),
         '/kesan-pesan': (context) => const KesanPesanPage(),
         '/minigame': (context) => const MiniGamePage(),
+        '/trivia': (context) => const TriviaPage(),
         '/space-shooter': (context) => const GameScreen(),
       },
     );
