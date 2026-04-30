@@ -189,8 +189,8 @@ class LocationHelp {
                   height: 320,
                   child: FlutterMap(
                     options: MapOptions(
-                      center: initialCenter,
-                      zoom: 14,
+                      initialCenter: initialCenter,
+                      initialZoom: 14,
                       onTap: (tapPos, latlng) async {
                         setState(() {
                           selectedPoint = latlng;
@@ -216,7 +216,7 @@ class LocationHelp {
                             width: 40,
                             height: 40,
                             point: selectedPoint,
-                            builder: (context) => const Icon(
+                            child: const Icon(
                               Icons.location_pin,
                               size: 40,
                               color: Colors.red,
@@ -295,4 +295,3 @@ class LocationHelp {
     }
   }
 }
-

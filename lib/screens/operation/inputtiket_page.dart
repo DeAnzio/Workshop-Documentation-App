@@ -68,6 +68,41 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   ];
   final List<String> _prioritasList = ['normal', 'urgent', 'express'];
 
+  double _parseNumericInput(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9\-,\.]'), '').replaceAll(',', '.');
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  Future<void> _setSelectedCurrency(String newCurrency) async {
+    final oldCurrency = _selectedCurrency;
+    if (newCurrency == oldCurrency) return;
+
+    final biaya = _estimasiBiayaController.text.isNotEmpty
+        ? _parseNumericInput(_estimasiBiayaController.text)
+        : 0.0;
+    final dp = _nominalDpController.text.isNotEmpty
+        ? _parseNumericInput(_nominalDpController.text)
+        : 0.0;
+
+    final convertedBiaya = biaya > 0
+        ? await CurrencyService.convertCurrency(biaya, oldCurrency, newCurrency)
+        : 0.0;
+    final convertedDp = dp > 0
+        ? await CurrencyService.convertCurrency(dp, oldCurrency, newCurrency)
+        : 0.0;
+
+    if (!mounted) return;
+    setState(() {
+      _selectedCurrency = newCurrency;
+      _estimasiBiayaController.text = biaya > 0
+          ? convertedBiaya.toStringAsFixed(2)
+          : _estimasiBiayaController.text;
+      _nominalDpController.text = dp > 0
+          ? convertedDp.toStringAsFixed(2)
+          : _nominalDpController.text;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -242,13 +277,30 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               const SizedBox(height: 16),
 
               // 9. Input Foto
-              ElevatedButton.icon(
-                onPressed: _pickImages,
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Upload Foto Device'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _pickImageFromCamera,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Ambil Foto'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _pickImages,
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Pilih Galeri'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -367,19 +419,17 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
               CurrencySelector(
                 selectedCurrency: _selectedCurrency,
                 onCurrencyChanged: (currency) {
-                  setState(() {
-                    _selectedCurrency = currency;
-                  });
+                  _setSelectedCurrency(currency);
                 },
                 showFlag: true,
               ),
               const SizedBox(height: 16),
 
-              // 12. Estimasi Biaya
+              // 12. Biaya Jasa
               TextFormField(
                 controller: _estimasiBiayaController,
                 decoration: InputDecoration(
-                  labelText: 'Estimasi Biaya ($_selectedCurrency)',
+                  labelText: 'Biaya Jasa ($_selectedCurrency)',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.payments),
                   prefixText: CurrencyService.getCurrencySymbol(
@@ -544,6 +594,26 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
     _estimasiBiayaController.dispose();
     _nominalDpController.dispose();
     super.dispose();
+  }
+
+  // Fungsi untuk mengambil foto dari kamera
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImages.add(image);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image from camera: $e')),
+      );
+    }
   }
 
   // Fungsi untuk memilih foto dari galeri

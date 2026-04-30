@@ -9,6 +9,8 @@ import 'package:anzioworkshopapp/screens/main/listtiket_page.dart';
 import 'package:anzioworkshopapp/screens/main/sps_page.dart';
 import 'package:anzioworkshopapp/screens/main/kesanpesan_page.dart';
 import 'package:anzioworkshopapp/screens/operation/askme_page.dart';
+import 'package:anzioworkshopapp/screens/operation/minigame/game_screen.dart';
+import 'package:anzioworkshopapp/screens/operation/minigame/minigame_page.dart';
 import 'package:anzioworkshopapp/screens/utils/biometric_help.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -129,6 +131,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         '/sps-locator': (context) => const SpsPage(),
         '/askme': (context) => const AskMe(),
         '/kesan-pesan': (context) => const KesanPesanPage(),
+        '/minigame': (context) => const MiniGamePage(),
+        '/space-shooter': (context) => const GameScreen(),
       },
     );
   }

@@ -110,6 +110,20 @@ class BackendService {
         FOREIGN KEY(service_order_id) REFERENCES service_orders(id)
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS service_spareparts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_id INTEGER NOT NULL,
+        nama TEXT NOT NULL,
+        kode TEXT,
+        qty INTEGER NOT NULL,
+        harga REAL NOT NULL,
+        photo_url TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(service_order_id) REFERENCES service_orders(id)
+      )
+    ''');
   }
 
   static Future<void> _updateSchema(Database db) async {
@@ -122,6 +136,45 @@ class BackendService {
         await db.execute('ALTER TABLE technicians ADD COLUMN kesanpesan TEXT');
       } catch (_) {
         // ignore if column already exists or sqlite does not support this addition
+      }
+    }
+
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'service_spareparts'",
+    );
+    if (tables.isEmpty) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS service_spareparts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            service_order_id INTEGER NOT NULL,
+            nama TEXT NOT NULL,
+            kode TEXT,
+            qty INTEGER NOT NULL,
+            harga REAL NOT NULL,
+            photo_url TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(service_order_id) REFERENCES service_orders(id)
+          )
+        ''');
+      } catch (_) {
+        // ignore if table creation fails on older sqlite versions
+      }
+    } else {
+      final sparepartColumns = await db.rawQuery(
+        'PRAGMA table_info(service_spareparts)',
+      );
+      final hasPhotoUrl = sparepartColumns.any(
+        (column) => column['name'] == 'photo_url',
+      );
+      if (!hasPhotoUrl) {
+        try {
+          await db.execute(
+            'ALTER TABLE service_spareparts ADD COLUMN photo_url TEXT',
+          );
+        } catch (_) {
+          // ignore if column addition fails on older sqlite versions
+        }
       }
     }
   }
@@ -768,6 +821,120 @@ class BackendService {
     } catch (e) {
       print('Get service photos failed: $e');
       return [];
+    }
+  }
+
+  /// Insert sparepart entry for a service order
+  static Future<String?> insertServiceSparepart(
+    String serviceOrderId, {
+    required String nama,
+    String? kode,
+    required int qty,
+    required double harga,
+    String? photoUrl,
+  }) async {
+    try {
+      final db = await _openDatabase();
+      final data = <String, Object?>{
+        'service_order_id': int.tryParse(serviceOrderId) ?? 0,
+        'nama': nama,
+        'kode': kode,
+        'qty': qty,
+        'harga': harga,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+      if (photoUrl != null) data['photo_url'] = photoUrl;
+      final id = await db.insert('service_spareparts', data);
+      return id.toString();
+    } catch (e) {
+      print('Insert service sparepart failed: $e');
+      return null;
+    }
+  }
+
+  /// Get spareparts for a service order
+  static Future<List<Map<String, dynamic>>> fetchServiceSpareparts(
+    String serviceOrderId,
+  ) async {
+    try {
+      final db = await _openDatabase();
+      final rows = await db.query(
+        'service_spareparts',
+        where: 'service_order_id = ?',
+        whereArgs: [int.tryParse(serviceOrderId) ?? 0],
+        orderBy: 'created_at DESC',
+      );
+      return rows.map((row) => Map<String, dynamic>.from(row)).toList();
+    } catch (e) {
+      print('Fetch service spareparts failed: $e');
+      return [];
+    }
+  }
+
+  /// Get total sparepart cost for a service order
+  static Future<double> fetchServiceSparepartsTotal(
+    String serviceOrderId,
+  ) async {
+    try {
+      final db = await _openDatabase();
+      final rows = await db.rawQuery(
+        'SELECT SUM(qty * harga) AS total FROM service_spareparts WHERE service_order_id = ?',
+        [int.tryParse(serviceOrderId) ?? 0],
+      );
+      final total = rows.first['total'];
+      if (total == null) return 0.0;
+      return (total as num).toDouble();
+    } catch (e) {
+      print('Fetch service spareparts total failed: $e');
+      return 0.0;
+    }
+  }
+
+  /// Update a sparepart entry for a service order
+  static Future<bool> updateServiceSparepart(
+    String sparepartId, {
+    String? nama,
+    String? kode,
+    int? qty,
+    double? harga,
+    String? photoUrl,
+  }) async {
+    try {
+      final db = await _openDatabase();
+      final updateData = <String, Object?>{};
+      if (nama != null) updateData['nama'] = nama;
+      if (kode != null) updateData['kode'] = kode;
+      if (qty != null) updateData['qty'] = qty;
+      if (harga != null) updateData['harga'] = harga;
+      if (photoUrl != null) updateData['photo_url'] = photoUrl;
+      if (updateData.isEmpty) return false;
+      updateData['updated_at'] = DateTime.now().toIso8601String();
+      final count = await db.update(
+        'service_spareparts',
+        updateData,
+        where: 'id = ?',
+        whereArgs: [int.tryParse(sparepartId) ?? 0],
+      );
+      return count > 0;
+    } catch (e) {
+      print('Update service sparepart failed: $e');
+      return false;
+    }
+  }
+
+  /// Delete a sparepart entry
+  static Future<bool> deleteServiceSparepart(String sparepartId) async {
+    try {
+      final db = await _openDatabase();
+      final count = await db.delete(
+        'service_spareparts',
+        where: 'id = ?',
+        whereArgs: [int.tryParse(sparepartId) ?? 0],
+      );
+      return count > 0;
+    } catch (e) {
+      print('Delete service sparepart failed: $e');
+      return false;
     }
   }
 

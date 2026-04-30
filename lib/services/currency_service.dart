@@ -1,8 +1,20 @@
 ﻿import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class CurrencyService {
   static const String _baseUrl = 'https://api.exchangerate-api.com/v4/latest';
+  static const String _apiBaseUrl = 'https://v6.exchangerate-api.com/v6';
+
+  static String get _apiKey =>
+      dotenv.env['EXCHANGE_RATE_API_KEY']?.trim() ?? '';
+
+  static String get _ratesUrl {
+    if (_apiKey.isNotEmpty) {
+      return '$_apiBaseUrl/$_apiKey/latest/USD';
+    }
+    return '$_baseUrl/USD';
+  }
 
   // Supported currencies with their symbols
   static const Map<String, Map<String, String>> supportedCurrencies = {
@@ -38,19 +50,43 @@ class CurrencyService {
     }
 
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/USD'));
+      final response = await http.get(Uri.parse(_ratesUrl));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _exchangeRates = Map<String, double>.from(data['rates']);
-        _lastFetchTime = DateTime.now();
-        return _exchangeRates!;
-      } else {
-        throw Exception('Failed to load exchange rates');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to load exchange rates: ${response.statusCode}');
       }
+
+      final data = json.decode(response.body);
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Invalid exchange rate response');
+      }
+
+      if (data['result'] == 'error') {
+        final apiError = data['error-type'] ?? 'Unknown API error';
+        throw Exception('Exchange rate API error: $apiError');
+      }
+
+      final ratesData = (data['conversion_rates'] as Map<String, dynamic>?) ??
+          (data['rates'] as Map<String, dynamic>?);
+
+      if (ratesData == null || ratesData.isEmpty) {
+        throw Exception('Exchange rate response missing rates');
+      }
+
+      _exchangeRates = ratesData.map((key, value) {
+        final numValue = value is num
+            ? value
+            : double.tryParse(value?.toString() ?? '0');
+        return MapEntry(key, numValue?.toDouble() ?? 0.0);
+      });
+      _exchangeRates!['USD'] = 1.0;
+      _lastFetchTime = DateTime.now();
+      return _exchangeRates!;
     } catch (e) {
-      // Return default rates if API fails
-      _exchangeRates ??= {
+      if (_exchangeRates != null && _exchangeRates!.isNotEmpty) {
+        return _exchangeRates!;
+      }
+      _exchangeRates = {
         'USD': 1.0,
         'EUR': 0.85,
         'JPY': 110.0,
@@ -83,16 +119,15 @@ class CurrencyService {
 
     final rates = await getExchangeRates();
 
-    // Convert to USD first, then to target currency
-    final amountInUSD = fromCurrency == 'USD'
-        ? amount
-        : amount / (rates[fromCurrency] ?? 1.0);
+    final fromRate = fromCurrency == 'USD' ? 1.0 : (rates[fromCurrency] ?? 0.0);
+    final toRate = toCurrency == 'USD' ? 1.0 : (rates[toCurrency] ?? 0.0);
 
-    final convertedAmount = toCurrency == 'USD'
-        ? amountInUSD
-        : amountInUSD * (rates[toCurrency] ?? 1.0);
+    if (fromRate <= 0 || toRate <= 0) {
+      return amount;
+    }
 
-    return convertedAmount;
+    final amountInUSD = amount / fromRate;
+    return amountInUSD * toRate;
   }
 
   static String formatCurrency(double amount, String currencyCode) {
@@ -133,4 +168,3 @@ class CurrencyService {
     return supportedCurrencies.keys.toList()..sort();
   }
 }
-

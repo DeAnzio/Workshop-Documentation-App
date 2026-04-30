@@ -28,7 +28,7 @@ class BiometricHelper {
   /// Check if device supports biometric
   static Future<bool> deviceSupported() async {
     try {
-      return await _auth.canCheckBiometrics;
+      return await _auth.isDeviceSupported();
     } catch (e) {
       print('Error checking device support: $e');
       return false;
@@ -40,10 +40,8 @@ class BiometricHelper {
     try {
       return await _auth.authenticate(
         localizedReason: reason,
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
     } catch (e) {
       print('Biometric authentication error: $e');
@@ -186,7 +184,9 @@ class BiometricHelper {
   /// Get remaining PIN lock duration in seconds
   static Future<int> getPINLockRemainingSeconds(String technicianId) async {
     try {
-      return await BackendService.getTechnicianPinLockRemainingSeconds(technicianId);
+      return await BackendService.getTechnicianPinLockRemainingSeconds(
+        technicianId,
+      );
     } catch (e) {
       print('Error getting PIN lock remaining seconds: $e');
       return 0;

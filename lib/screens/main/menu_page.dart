@@ -141,6 +141,13 @@ class _HomeScaffoldState extends State<HomeScaffold> {
               },
               child: const Text('Chatbot'),
             ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/minigame');
+              },
+              child: const Text('Mini Games'),
+            ),
           ],
         ),
       ),

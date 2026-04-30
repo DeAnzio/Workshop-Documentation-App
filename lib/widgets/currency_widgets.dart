@@ -27,6 +27,16 @@ class _CurrencySelectorState extends State<CurrencySelector> {
   }
 
   @override
+  void didUpdateWidget(CurrencySelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedCurrency != widget.selectedCurrency) {
+      setState(() {
+        _selectedCurrency = widget.selectedCurrency;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final currencies = CurrencyService.getSupportedCurrencyCodes();
 
@@ -89,21 +99,21 @@ class _CurrencySelectorState extends State<CurrencySelector> {
   Widget _buildCurrencyFlag(String currencyCode) {
     // Simple flag representation using emoji flags
     const flagEmojis = {
-      'USD': 'ðŸ‡ºðŸ‡¸',
-      'EUR': 'ðŸ‡ªðŸ‡º',
-      'JPY': 'ðŸ‡¯ðŸ‡µ',
-      'GBP': 'ðŸ‡¬ðŸ‡§',
-      'IDR': 'ðŸ‡®ðŸ‡©',
-      'SGD': 'ðŸ‡¸ðŸ‡¬',
-      'AUD': 'ðŸ‡¦ðŸ‡º',
-      'CAD': 'ðŸ‡¨ðŸ‡¦',
-      'CHF': 'ðŸ‡¨ðŸ‡­',
-      'CNY': 'ðŸ‡¨ðŸ‡³',
-      'KRW': 'ðŸ‡°ðŸ‡·',
-      'THB': 'ðŸ‡¹ðŸ‡­',
-      'MYR': 'ðŸ‡²ðŸ‡¾',
-      'HKD': 'ðŸ‡­ðŸ‡°',
-      'NZD': 'ðŸ‡³ðŸ‡¿',
+      'USD': '',
+      'EUR': '',
+      'JPY': '',
+      'GBP': '',
+      'IDR': '',
+      'SGD': '',
+      'AUD': '',
+      'CAD': '',
+      'CHF': '­',
+      'CNY': '',
+      'KRW': '',
+      'THB': '­',
+      'MYR': '',
+      'HKD': '',
+      'NZD': '',
     };
 
     return Text(
