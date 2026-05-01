@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:anzioworkshopapp/screens/operation/printnota.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -39,6 +40,7 @@ class _HistoryPageState extends State<HistoryPage> {
     if (!mounted) return;
     if (!valid) {
       final sessionExpired = await BackendService.isSessionExpired;
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, sessionExpired ? '/verify' : '/login');
       return;
     }
@@ -206,6 +208,26 @@ class _HistoryPageState extends State<HistoryPage> {
                                             const SizedBox(height: 8),
                                             Text('Keluhan: $catatan'),
                                           ],
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              ElevatedButton.icon(
+                                                onPressed: (status.toLowerCase() == 'selesai' || status.toLowerCase() == 'ambil')
+                                                    ? () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder: (_) => PrintNotaPage(order: item),
+                                                          ),
+                                                        );
+                                                      }
+                                                    : null,
+                                                icon: const Icon(Icons.receipt_long),
+                                                label: const Text('Cetak Nota'),
+                                              ),
+                                            ],
+                                          ),
                                         ],
                                       ),
                                     ),
