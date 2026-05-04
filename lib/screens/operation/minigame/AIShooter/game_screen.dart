@@ -185,7 +185,7 @@ class _MenuOverlay extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              '🚀',
+              '🤖',
               style: TextStyle(fontSize: 64),
             ),
             const SizedBox(height: 16),
@@ -194,7 +194,7 @@ class _MenuOverlay extends StatelessWidget {
                 colors: [Colors.cyanAccent, Colors.blueAccent],
               ).createShader(bounds),
               child: const Text(
-                'SPACE SHOOTER',
+                'AI SHOOTER',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 34,
@@ -205,7 +205,7 @@ class _MenuOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Geser layar untuk mengendalikan pesawat',
+              'Geser layar untuk mengendalikan RAM',
               style: TextStyle(color: Colors.white54, fontSize: 13),
               textAlign: TextAlign.center,
             ),

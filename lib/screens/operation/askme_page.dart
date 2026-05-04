@@ -16,8 +16,11 @@ class _AskMeState extends State<AskMe> {
   String get apiKey => dotenv.env['GOOGLE_API_KEY'] ?? '';
 
   List<Map<String, String>> messages = [
-    {"role": "assistant", "content": "Halo! Gemini siap bantu kamu 🚀"},
-  ];
+  {
+    "role": "assistant",
+    "content": "Halo Teknisi! 🔧 Ada masalah hardware, software, atau mau catat servis? Saya siap bantu!",
+  },
+];
 
   bool isLoading = false;
 
@@ -52,16 +55,34 @@ class _AskMeState extends State<AskMe> {
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "contents": [
-            {
-              "role": "user",
-              "parts": [
-                {"text": userText},
-              ],
-            },
-          ],
-          "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1000},
-        }),
+                "systemInstruction": {
+                  "parts": [
+                    {
+                      "text": """Kamu adalah asisten virtual untuk aplikasi pencatatan teknisi komputer. 
+              Tugasmu adalah membantu teknisi komputer dalam hal:
+              - Diagnosa kerusakan hardware (motherboard, RAM, HDD/SSD, GPU, PSU, dll)
+              - Troubleshooting software dan sistem operasi (Windows, Linux)
+              - Estimasi biaya perbaikan dan rekomendasi spare part
+              - Pencatatan riwayat servis pelanggan
+              - Tips perawatan komputer dan laptop
+              - Rekomendasi spesifikasi upgrade perangkat
+
+              Jika pengguna bertanya di luar topik teknisi/komputer, arahkan kembali dengan sopan 
+              bahwa kamu hanya bisa membantu seputar dunia teknisi komputer.
+              Gunakan bahasa Indonesia yang profesional namun mudah dipahami."""
+                    }
+                  ]
+                },
+                "contents": [
+                  {
+                    "role": "user",
+                    "parts": [
+                      {"text": userText},
+                    ],
+                  },
+                ],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1000},
+              }),
       );
 
       if (response.statusCode == 200) {

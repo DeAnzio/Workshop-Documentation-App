@@ -225,7 +225,7 @@ class _TriviaPageState extends State<TriviaPage> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: const Text('Mulai Trivia'),
+                          child: const Text('Mulai Trivia', style: TextStyle(color: Color.fromARGB(255, 233, 239, 246)),),
                         ),
                       )
                     : _buildQuestionView(),

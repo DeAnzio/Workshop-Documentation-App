@@ -10,7 +10,7 @@ class MiniGamePage extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'Mini Games',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
         ),
         backgroundColor: const Color(0xFF080E1A),
       ),
@@ -23,7 +23,7 @@ class MiniGamePage extends StatelessWidget {
               const Text(
                 'Pilih Game',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Color.fromARGB(255, 106, 139, 179),
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -38,7 +38,7 @@ class MiniGamePage extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.quiz),
-                label: const Text('Trivia Game'),
+                label: const Text('Trivia Game', style: TextStyle(color: Color.fromARGB(255, 233, 239, 246)),),
                 onPressed: () {
                   Navigator.pushNamed(context, '/trivia');
                 },
@@ -53,7 +53,7 @@ class MiniGamePage extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.sports_esports),
-                label: const Text('Space Shooter'),
+                label: const Text('AI Shooter', style: TextStyle(color: Color.fromARGB(255, 233, 239, 246)),),
                 onPressed: () {
                   Navigator.pushNamed(context, '/space-shooter');
                 },

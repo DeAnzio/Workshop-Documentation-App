@@ -113,6 +113,7 @@ class _KesanPesanPageState extends State<KesanPesanPage> {
                   TextField(
                     controller: _controller,
                     maxLines: 5,
+                    maxLength: 1000,
                     decoration: InputDecoration(
                       labelText: 'Kesan & Pesan',
                       alignLabelWithHint: true,

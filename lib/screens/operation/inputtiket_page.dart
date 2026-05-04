@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:anzioworkshopapp/screens/utils/Location_help.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
@@ -40,6 +41,16 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   final TextEditingController _estimasiBiayaController =
       TextEditingController();
   final TextEditingController _nominalDpController = TextEditingController();
+  final int _maxNominalInputLength = 15;
+  final int _maxNamaLength = 100;
+  final int _maxNoHpLength = 20;
+  final int _maxAlamatLength = 500;
+  final int _maxMerekModelLength = 100;
+  final int _maxSerialNumberLength = 50;
+  final int _maxKondisiFisikLength = 500;
+  final int _maxKelengkapanLength = 500;
+  final int _maxPasswordLength = 50;
+  final int _maxCatatanLength = 1000;
   bool _isFetchingLocation = false;
 
   // Variabel untuk dropdown
@@ -63,9 +74,49 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
   ];
   final List<String> _prioritasList = ['normal', 'urgent', 'express'];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadTechnicianCurrency();
+  }
+
+  Future<void> _loadTechnicianCurrency() async {
+    try {
+      final techId = await BackendService.getCurrentTechnicianId();
+      if (techId != null) {
+        final techData = await BackendService.fetchTechnicianById(techId);
+        if (techData != null && mounted) {
+          setState(() {
+            _selectedCurrency = techData['currency']?.toString() ?? 'IDR';
+          });
+        }
+      }
+    } catch (e) {
+      // Keep default currency if loading fails
+      debugPrint('Error loading technician currency: $e');
+    }
+  }
+
   double _parseNumericInput(String value) {
     final cleaned = value.replaceAll(RegExp(r'[^0-9\-,\.]'), '').replaceAll(',', '.');
     return double.tryParse(cleaned) ?? 0.0;
+  }
+
+  String? _validateNominalInput(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.length > 12) {
+      return 'Nominal terlalu panjang';
+    }
+
+    if (_parseNumericInput(value) > 999999999999) {
+      return 'Nominal terlalu besar';
+    }
+
+    return null;
   }
 
   @override
@@ -94,6 +145,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person),
                 ),
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxNamaLength),
+                ],
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Nama pelanggan harus diisi';
@@ -112,6 +166,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   prefixIcon: Icon(Icons.phone),
                 ),
                 keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxNoHpLength),
+                ],
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'No. HP harus diisi';
@@ -141,6 +198,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   ),
                 ),
                 maxLines: 2,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxAlamatLength),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -180,6 +240,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.smartphone),
                 ),
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxMerekModelLength),
+                ],
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Merek & Model harus diisi';
@@ -196,8 +259,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   labelText: 'Serial Number',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.confirmation_num),
-                ),
-              ),
+                ),                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxSerialNumberLength),
+                ],              ),
               const SizedBox(height: 16),
 
               // 6. Kondisi Fisik
@@ -208,8 +272,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.build),
                 ),
-                maxLines: 2,
-              ),
+                maxLines: 2,                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxKondisiFisikLength),
+                ],              ),
               const SizedBox(height: 16),
 
               // 7. Kelengkapan
@@ -220,8 +285,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.inventory),
                 ),
-                maxLines: 2,
-              ),
+                maxLines: 2,                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxKelengkapanLength),
+                ],              ),
               const SizedBox(height: 16),
 
               // 8. Password/PIN Device
@@ -233,6 +299,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   prefixIcon: Icon(Icons.lock),
                 ),
                 obscureText: true,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxPasswordLength),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -380,8 +449,14 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   prefixText: CurrencyService.getCurrencySymbol(
                     _selectedCurrency,
                   ),
+                  counterText: '',
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9\.,]')),
+                  LengthLimitingTextInputFormatter(_maxNominalInputLength),
+                ],
+                validator: _validateNominalInput,
               ),
               const SizedBox(height: 16),
 
@@ -395,8 +470,14 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   prefixText: CurrencyService.getCurrencySymbol(
                     _selectedCurrency,
                   ),
+                  counterText: '',
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9\.,]')),
+                  LengthLimitingTextInputFormatter(_maxNominalInputLength),
+                ],
+                validator: _validateNominalInput,
               ),
               const SizedBox(height: 16),
 
@@ -410,6 +491,9 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
                   alignLabelWithHint: true,
                 ),
                 maxLines: 4,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(_maxCatatanLength),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -477,10 +561,10 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
         serviceType: _serviceType ?? '',
         prioritas: _prioritas ?? 'normal',
         estimasiBiaya: _estimasiBiayaController.text.isNotEmpty
-            ? double.tryParse(_estimasiBiayaController.text)
+            ? _parseNumericInput(_estimasiBiayaController.text)
             : null,
         nominalDp: _nominalDpController.text.isNotEmpty
-            ? double.tryParse(_nominalDpController.text)
+            ? _parseNumericInput(_nominalDpController.text)
             : null,
         technicianId: techId,
         currency: _selectedCurrency,

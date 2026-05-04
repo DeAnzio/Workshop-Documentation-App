@@ -3,8 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
+import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/timezone_service.dart';
-import 'package:anzioworkshopapp/screens/utils/moresecure_page.dart';
+import 'package:anzioworkshopapp/screens/security/moresecure_page.dart';
 import 'package:anzioworkshopapp/widgets/currency_widgets.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -30,6 +31,11 @@ class _ProfilePageState extends State<ProfilePage> {
   String _selectedCurrency = 'IDR';
   String _selectedTimeZone = 'WIB';
   Timer? _timeRefreshTimer;
+
+  // Stats
+  int _totalCompletedTickets = 0;
+  double _totalRevenue = 0.0;
+  bool _statsLoading = false;
 
   List<String> get _timeZones => [
         'WIB',
@@ -89,6 +95,7 @@ class _ProfilePageState extends State<ProfilePage> {
         //_securityEnabled = data['security_enabled'] ?? false;
         _loading = false;
       });
+      await _loadStats(techId);
       _startTimeRefresh();
     } catch (e) {
       setState(() {
@@ -162,6 +169,57 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _loadStats(String technicianId) async {
+    setState(() {
+      _statsLoading = true;
+    });
+
+    try {
+      // Fetch all service orders (including completed) for this technician
+      final orders = await BackendService.fetchServiceOrdersForTechnician(
+        technicianId,
+        excludeFinished: false,
+      );
+
+      int completedCount = 0;
+      double totalRevenue = 0.0;
+
+      for (final order in orders) {
+        final status = order['status_service']?.toString() ?? '';
+        if (status == 'selesai') {
+          completedCount++;
+          final biayaAkhir = (order['biaya_akhir'] as num?)?.toDouble() ?? 0.0;
+          final orderCurrency = order['currency']?.toString() ?? 'IDR';
+          
+          // Convert to technician's preferred currency if different
+          if (orderCurrency != _selectedCurrency && biayaAkhir > 0) {
+            final convertedAmount = await CurrencyService.convertCurrency(
+              biayaAkhir,
+              orderCurrency,
+              _selectedCurrency,
+            );
+            totalRevenue += convertedAmount;
+          } else {
+            totalRevenue += biayaAkhir;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _totalCompletedTickets = completedCount;
+        _totalRevenue = totalRevenue;
+        _statsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _statsLoading = false;
+      });
+      print('Error loading stats: $e');
+    }
+  }
+
   Future<void> _pickImage() async {
     try {
       final image = await _picker.pickImage(source: ImageSource.gallery);
@@ -175,6 +233,34 @@ class _ProfilePageState extends State<ProfilePage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+    }
+  }
+
+  Future<void> _exportDatabaseDebug() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final exportedFile = await BackendService.exportDatabase();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Database diekspor ke: ${exportedFile.path}'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Gagal mengekspor database: $e';
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
@@ -281,6 +367,74 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Stats Section
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: _statsLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Statistik Pekerjaan',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    children: [
+                                      Column(
+                                        children: [
+                                          Text(
+                                            _totalCompletedTickets.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color.fromARGB(255, 26, 41, 67),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            'Tiket Selesai',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            CurrencyService.formatCurrency(_totalRevenue, _selectedCurrency),
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color.fromARGB(255, 26, 41, 67),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Total Pendapatan ($_selectedCurrency)',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     Card(
                       child: ListTile(
                         title: const Text('Pengamanan Tambahan'),
@@ -322,12 +476,12 @@ class _ProfilePageState extends State<ProfilePage> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                const Text('Contoh 1000 IDR = '),
+                                Text('Contoh 1000 $_selectedCurrency = '),
                                 Expanded(
                                   child: CurrencyConverter(
                                     baseAmount: 1000,
-                                    baseCurrency: 'IDR',
-                                    targetCurrency: _selectedCurrency,
+                                    baseCurrency: _selectedCurrency,
+                                    targetCurrency: _selectedCurrency == 'IDR' ? 'USD' : 'IDR',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -389,6 +543,20 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Debug export database
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _exportDatabaseDebug,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white54),
+                        ),
+                        child: const Text('Export Database Debug'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     // Save Button
                     SizedBox(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
 import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -39,7 +40,14 @@ class _EditTiketPageState extends State<EditTiketPage> {
   String? _statusBayar;
   String? _jenisService;
   String? _prioritas;
+  late String _ticketCurrency;
   String _selectedCurrency = 'IDR'; // Default currency
+
+  final int _maxKondisiFisikLength = 500;
+  final int _maxKelengkapanLength = 500;
+  final int _maxDiagnosaLength = 1000;
+  final int _maxKeluhanLength = 1000;
+  final int _maxNominalInputLength = 15;
 
   final List<String> _statusServiceList = [
     'masuk',
@@ -56,12 +64,15 @@ class _EditTiketPageState extends State<EditTiketPage> {
   ];
   final List<String> _prioritasList = ['normal', 'urgent', 'express'];
 
+  String _formatCurrency(double value) {
+    return CurrencyService.formatCurrency(value, _selectedCurrency);
+  }
+
   @override
   void initState() {
     super.initState();
     _initializeControllers();
-    _loadPhotos();
-    _loadSpareparts();
+    _loadInitialData();
   }
 
   void _initializeControllers() {
@@ -85,7 +96,73 @@ class _EditTiketPageState extends State<EditTiketPage> {
     _statusBayar = widget.tiketData['status_bayar'] ?? 'belum';
     _jenisService = widget.tiketData['jenis_service'] ?? '';
     _prioritas = widget.tiketData['prioritas'] ?? 'normal';
-    _selectedCurrency = widget.tiketData['currency'] ?? 'IDR';
+    _ticketCurrency = widget.tiketData['currency']?.toString() ?? 'IDR';
+    _selectedCurrency = _ticketCurrency;
+  }
+
+  Future<void> _loadInitialData() async {
+    await _loadTechnicianCurrency();
+    await _loadPhotos();
+    await _loadSpareparts();
+  }
+
+  Future<void> _loadTechnicianCurrency() async {
+    try {
+      final techId = await BackendService.getCurrentTechnicianId();
+      if (techId != null) {
+        final techData = await BackendService.fetchTechnicianById(techId);
+        if (techData != null && mounted) {
+          final techCurrency = techData['currency']?.toString();
+          if (techCurrency != null) {
+            final originalCurrency = _ticketCurrency;
+            setState(() {
+              _selectedCurrency = techCurrency;
+            });
+            if (originalCurrency != techCurrency) {
+              await _convertTicketValues(originalCurrency, techCurrency);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Fallback to ticket currency or default if loading fails
+      if (mounted) {
+        setState(() {
+          _selectedCurrency = widget.tiketData['currency'] ?? 'IDR';
+        });
+      }
+      debugPrint('Error loading technician currency: $e');
+    }
+  }
+
+  Future<void> _convertTicketValues(
+    String fromCurrency,
+    String toCurrency,
+  ) async {
+    if (fromCurrency == toCurrency) return;
+
+    final currentBiayaJasa = double.tryParse(_biayaJasaController.text) ?? 0.0;
+    final convertedBiayaJasa = await CurrencyService.convertCurrency(
+      currentBiayaJasa,
+      fromCurrency,
+      toCurrency,
+    );
+
+    for (final sparepart in _spareparts) {
+      final harga = (sparepart['harga'] as num?)?.toDouble() ?? 0.0;
+      final convertedHarga = await CurrencyService.convertCurrency(
+        harga,
+        fromCurrency,
+        toCurrency,
+      );
+      sparepart['harga'] = convertedHarga;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _biayaJasaController.text = _formatCurrency(convertedBiayaJasa);
+      _selectedCurrency = toCurrency;
+    });
   }
 
   Future<void> _loadPhotos() async {
@@ -166,13 +243,17 @@ class _EditTiketPageState extends State<EditTiketPage> {
       _sparepartLoading = false;
     });
 
+    if (_selectedCurrency != _ticketCurrency) {
+      await _convertTicketValues(_ticketCurrency, _selectedCurrency);
+    }
+
     if (_biayaJasaController.text.isEmpty) {
       final biayaAkhir =
           double.tryParse(widget.tiketData['biaya_akhir']?.toString() ?? '') ??
-          0.0;
+              0.0;
       final jasaFromExisting = biayaAkhir - _calculateSparepartTotal();
       if (jasaFromExisting > 0) {
-        _biayaJasaController.text = jasaFromExisting.toStringAsFixed(0);
+        _biayaJasaController.text = _formatCurrency(jasaFromExisting);
       }
     }
   }
@@ -191,130 +272,218 @@ class _EditTiketPageState extends State<EditTiketPage> {
     final qtyController = TextEditingController(text: '1');
     final hargaController = TextEditingController();
     String? selectedPhotoUrl;
+    final messenger = ScaffoldMessenger.of(context);
 
     await showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, dialogSetState) {
-            return AlertDialog(
-              title: const Text('Tambah Sparepart'),
-              content: SingleChildScrollView(
+            return Dialog(
+              insetPadding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 600,
+                  maxHeight: MediaQuery.of(dialogContext).size.height * 0.85,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (selectedPhotoUrl != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(selectedPhotoUrl!),
-                          width: double.infinity,
-                          height: 140,
-                          fit: BoxFit.cover,
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    if (selectedPhotoUrl != null) const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final pickedUrl = await _pickAttachmentImage(
-                                ImageSource.camera,
-                                'sparepart_${widget.tiketData['id'] ?? 'unknown'}',
-                              );
-                              if (pickedUrl != null) {
-                                dialogSetState(() {
-                                  selectedPhotoUrl = pickedUrl;
-                                });
-                              }
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Tambah Sparepart',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
                             },
-                            icon: const Icon(Icons.camera_alt),
-                            label: const Text('Kamera'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        try {
+                                          final pickedUrl = await _pickAttachmentImage(
+                                            ImageSource.camera,
+                                            'sparepart_${widget.tiketData['id'] ?? 'unknown'}',
+                                          );
+                                          if (pickedUrl != null) {
+                                            dialogSetState(() {
+                                              selectedPhotoUrl = pickedUrl;
+                                            });
+                                          }
+                                        } catch (e) {
+                                          debugPrint('Error picking camera image: $e');
+                                        }
+                                      },
+                                      icon: const Icon(Icons.camera_alt),
+                                      label: const Text('Kamera'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        try {
+                                          final pickedUrl = await _pickAttachmentImage(
+                                            ImageSource.gallery,
+                                            'sparepart_${widget.tiketData['id'] ?? 'unknown'}',
+                                          );
+                                          if (pickedUrl != null) {
+                                            dialogSetState(() {
+                                              selectedPhotoUrl = pickedUrl;
+                                            });
+                                          }
+                                        } catch (e) {
+                                          debugPrint('Error picking gallery image: $e');
+                                        }
+                                      },
+                                      icon: const Icon(Icons.photo_library),
+                                      label: const Text('Galeri'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (selectedPhotoUrl != null) const SizedBox(height: 16),
+                              if (selectedPhotoUrl != null)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(selectedPhotoUrl!),
+                                    width: double.infinity,
+                                    height: 250,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[300],
+                                        height: 250,
+                                        child: const Center(
+                                          child: Icon(Icons.broken_image),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              if (selectedPhotoUrl != null) const SizedBox(height: 16),
+                              TextFormField(
+                                controller: namaController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nama Sparepart',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: kodeController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Kode Sparepart',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: qtyController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Qty',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: hargaController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Harga',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final pickedUrl = await _pickAttachmentImage(
-                                ImageSource.gallery,
-                                'sparepart_${widget.tiketData['id'] ?? 'unknown'}',
-                              );
-                              if (pickedUrl != null) {
-                                dialogSetState(() {
-                                  selectedPhotoUrl = pickedUrl;
-                                });
-                              }
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
                             },
-                            icon: const Icon(Icons.photo_library),
-                            label: const Text('Galeri'),
+                            child: const Text('Batal'),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: namaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nama Sparepart',
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              final nama = namaController.text.trim();
+                              final kode = kodeController.text.trim();
+                              final qty = int.tryParse(qtyController.text.trim()) ?? 0;
+                              final harga =
+                                  double.tryParse(hargaController.text.trim()) ?? 0.0;
+                              if (nama.isEmpty || qty <= 0 || harga <= 0) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Isi semua field sparepart dengan benar.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              Navigator.of(dialogContext).pop();
+                              _addSparepart(
+                                nama,
+                                kode,
+                                qty,
+                                harga,
+                                photoUrl: selectedPhotoUrl,
+                              );
+                            },
+                            child: const Text('Simpan'),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: kodeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Kode Sparepart',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: qtyController,
-                      decoration: const InputDecoration(labelText: 'Qty'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: hargaController,
-                      decoration: const InputDecoration(labelText: 'Harga'),
-                      keyboardType: TextInputType.number,
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final nama = namaController.text.trim();
-                    final qty = int.tryParse(qtyController.text.trim()) ?? 0;
-                    final harga =
-                        double.tryParse(hargaController.text.trim()) ?? 0.0;
-                    if (nama.isEmpty || qty <= 0 || harga <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Isi semua field sparepart dengan benar.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.of(context).pop();
-                    _addSparepart(
-                      nama,
-                      kodeController.text.trim(),
-                      qty,
-                      harga,
-                      photoUrl: selectedPhotoUrl,
-                    );
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
             );
           },
         );
@@ -363,163 +532,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
     }
   }
 
-  Future<void> _showEditSparepartDialog(Map<String, dynamic> sparepart) async {
-    final namaController = TextEditingController(
-      text: sparepart['nama']?.toString() ?? '',
-    );
-    final kodeController = TextEditingController(
-      text: sparepart['kode']?.toString() ?? '',
-    );
-    final qtyController = TextEditingController(
-      text: (sparepart['qty'] as num?)?.toString() ?? '1',
-    );
-    final hargaController = TextEditingController(
-      text: (sparepart['harga'] as num?)?.toString() ?? '0',
-    );
-    String? selectedPhotoUrl = sparepart['photo_url']?.toString();
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, dialogSetState) {
-            return AlertDialog(
-              title: const Text('Edit Sparepart'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (selectedPhotoUrl?.isNotEmpty == true)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          File(selectedPhotoUrl!),
-                          width: double.infinity,
-                          height: 140,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    if (selectedPhotoUrl?.isNotEmpty == true)
-                      const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final pickedUrl = await _pickAttachmentImage(
-                                ImageSource.camera,
-                                'sparepart_${widget.tiketData['id'] ?? 'unknown'}',
-                              );
-                              if (pickedUrl != null) {
-                                dialogSetState(() {
-                                  selectedPhotoUrl = pickedUrl;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.camera_alt),
-                            label: const Text('Kamera'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final pickedUrl = await _pickAttachmentImage(
-                                ImageSource.gallery,
-                                'sparepart_${widget.tiketData['id'] ?? 'unknown'}',
-                              );
-                              if (pickedUrl != null) {
-                                dialogSetState(() {
-                                  selectedPhotoUrl = pickedUrl;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.photo_library),
-                            label: const Text('Galeri'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: namaController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nama Sparepart',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: kodeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Kode Sparepart',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: qtyController,
-                      decoration: const InputDecoration(labelText: 'Qty'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: hargaController,
-                      decoration: const InputDecoration(labelText: 'Harga'),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Batal'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _confirmDeleteSparepart(sparepart['id']?.toString() ?? '');
-                  },
-                  child: const Text(
-                    'Hapus',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final nama = namaController.text.trim();
-                    final qty = int.tryParse(qtyController.text.trim()) ?? 0;
-                    final harga =
-                        double.tryParse(hargaController.text.trim()) ?? 0.0;
-                    if (nama.isEmpty || qty <= 0 || harga <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Isi semua field sparepart dengan benar.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.of(context).pop();
-                    _updateSparepart(
-                      sparepart['id']?.toString() ?? '',
-                      nama: nama,
-                      kode: kodeController.text.trim(),
-                      qty: qty,
-                      harga: harga,
-                      photoUrl: selectedPhotoUrl,
-                    );
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _confirmDeleteSparepart(String sparepartId) async {
     if (sparepartId.isEmpty) return;
     final confirmed = await showDialog<bool>(
@@ -543,44 +555,6 @@ class _EditTiketPageState extends State<EditTiketPage> {
     );
     if (confirmed == true) {
       await _deleteSparepart(sparepartId);
-    }
-  }
-
-  Future<void> _updateSparepart(
-    String sparepartId, {
-    required String nama,
-    String? kode,
-    required int qty,
-    required double harga,
-    String? photoUrl,
-  }) async {
-    if (sparepartId.isEmpty) return;
-    setState(() {
-      _sparepartLoading = true;
-    });
-    final messenger = ScaffoldMessenger.of(context);
-    final updated = await BackendService.updateServiceSparepart(
-      sparepartId,
-      nama: nama,
-      kode: kode,
-      qty: qty,
-      harga: harga,
-      photoUrl: photoUrl,
-    );
-    if (!mounted) return;
-    if (updated) {
-      await _loadSpareparts();
-      setState(() {});
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Sparepart berhasil diperbarui.')),
-      );
-    } else {
-      setState(() {
-        _sparepartLoading = false;
-      });
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Gagal memperbarui sparepart.')),
-      );
     }
   }
 
@@ -676,6 +650,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
       appBar: AppBar(
         title: Text('Edit Tiket - $tiketNo'),
         backgroundColor: const Color.fromARGB(255, 26, 41, 67),
+        titleTextStyle: const TextStyle(color: Colors.white),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -795,6 +770,9 @@ class _EditTiketPageState extends State<EditTiketPage> {
                         prefixIcon: Icon(Icons.visibility),
                       ),
                       maxLines: 2,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(_maxKondisiFisikLength),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -807,6 +785,9 @@ class _EditTiketPageState extends State<EditTiketPage> {
                         prefixIcon: Icon(Icons.inventory),
                       ),
                       maxLines: 2,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(_maxKelengkapanLength),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -819,6 +800,9 @@ class _EditTiketPageState extends State<EditTiketPage> {
                         prefixIcon: Icon(Icons.note),
                       ),
                       maxLines: 3,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(_maxKeluhanLength),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -831,6 +815,9 @@ class _EditTiketPageState extends State<EditTiketPage> {
                         prefixIcon: Icon(Icons.medical_information),
                       ),
                       maxLines: 3,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(_maxDiagnosaLength),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -846,6 +833,9 @@ class _EditTiketPageState extends State<EditTiketPage> {
                         ),
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(_maxNominalInputLength),
+                      ],
                       onChanged: (_) => setState(() {}),
                     ),
                     const SizedBox(height: 16),
@@ -991,7 +981,8 @@ class _EditTiketPageState extends State<EditTiketPage> {
                                   final sparepartPhotoPath =
                                       sparepart['photo_url']?.toString() ?? '';
                                   return ListTile(
-                                    leading: sparepartPhotoPath.isNotEmpty
+                                    leading: sparepartPhotoPath.isNotEmpty &&
+                                            File(sparepartPhotoPath).existsSync()
                                         ? ClipRRect(
                                             borderRadius: BorderRadius.circular(
                                               8,
@@ -1001,6 +992,16 @@ class _EditTiketPageState extends State<EditTiketPage> {
                                               width: 48,
                                               height: 48,
                                               fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return const SizedBox(
+                                                  width: 48,
+                                                  height: 48,
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey,
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           )
                                         : const Icon(
@@ -1014,33 +1015,18 @@ class _EditTiketPageState extends State<EditTiketPage> {
                                           ),
                                     title: Text(sparepart['nama'] ?? '-'),
                                     subtitle: Text(
-                                      'Kode: ${sparepart['kode'] ?? '-'} • Qty: $qty • Harga: ${CurrencyService.getCurrencySymbol(_selectedCurrency)}${harga.toStringAsFixed(0)}',
+                                      'Kode: ${sparepart['kode'] ?? '-'} • Qty: $qty • Harga: ${CurrencyService.formatCurrency(harga, _selectedCurrency)}',
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          '${CurrencyService.getCurrencySymbol(_selectedCurrency)}${(qty * harga).toStringAsFixed(0)}',
+                                          CurrencyService.formatCurrency(qty * harga, _selectedCurrency),
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Color.fromARGB(
-                                              255,
-                                              26,
-                                              41,
-                                              67,
-                                            ),
-                                          ),
-                                          onPressed: () =>
-                                              _showEditSparepartDialog(
-                                                sparepart,
-                                              ),
-                                        ),
                                         IconButton(
                                           icon: const Icon(
                                             Icons.delete,
@@ -1059,7 +1045,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                               ),
                             const SizedBox(height: 12),
                             Text(
-                              'Total Sparepart: ${CurrencyService.getCurrencySymbol(_selectedCurrency)}${_calculateSparepartTotal().toStringAsFixed(0)}',
+                              CurrencyService.formatCurrency(_calculateSparepartTotal(), _selectedCurrency),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -1092,7 +1078,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                               children: [
                                 const Text('Jumlah Biaya Jasa'),
                                 Text(
-                                  '${CurrencyService.getCurrencySymbol(_selectedCurrency)}${_biayaJasaValue().toStringAsFixed(0)}',
+                                  CurrencyService.formatCurrency(_biayaJasaValue(), _selectedCurrency),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1105,7 +1091,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                               children: [
                                 const Text('Total Sparepart'),
                                 Text(
-                                  '${CurrencyService.getCurrencySymbol(_selectedCurrency)}${_calculateSparepartTotal().toStringAsFixed(0)}',
+                                  CurrencyService.formatCurrency(_calculateSparepartTotal(), _selectedCurrency),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1124,7 +1110,7 @@ class _EditTiketPageState extends State<EditTiketPage> {
                                   ),
                                 ),
                                 Text(
-                                  '${CurrencyService.getCurrencySymbol(_selectedCurrency)}${_calculateBiayaAkhir().toStringAsFixed(0)}',
+                                  CurrencyService.formatCurrency(_calculateBiayaAkhir(), _selectedCurrency),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,

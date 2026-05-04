@@ -285,19 +285,19 @@ class _ListTiketPageState extends State<ListTiketPage> {
                                             ],
                                           ),
                                           const SizedBox(height: 8),
-                                          Text('Nama: $nama'),
-                                          Text('No. HP: $noHp'),
-                                          Text('Device: $jenis'),
-                                          Text('Merek/Model: $merek'),
-                                          Text('Jenis Service: $service'),
-                                          Text('Status: $status'),
-                                          Text('Masuk: $tglMasuk'),
+                                          Text('Nama: $nama', maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text('No. HP: $noHp', maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text('Device: $jenis', maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text('Merek/Model: $merek', maxLines: 2, overflow: TextOverflow.ellipsis),
+                                          Text('Jenis Service: $service', maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text('Status: $status', maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text('Masuk: $tglMasuk', maxLines: 1, overflow: TextOverflow.ellipsis),
                                           if (alamat.isNotEmpty) ...[
                                             const SizedBox(height: 8),
                                             Row(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Expanded(child: Text('Alamat: $alamat')),
+                                                Expanded(child: Text('Alamat: $alamat', maxLines: 2, overflow: TextOverflow.ellipsis)),
                                                 IconButton(
                                                   icon: const Icon(
                                                     Icons.map,
@@ -316,7 +316,7 @@ class _ListTiketPageState extends State<ListTiketPage> {
                                           ],
                                           if (catatan.isNotEmpty) ...[
                                             const SizedBox(height: 8),
-                                            Text('Keluhan: $catatan'),
+                                            Text('Keluhan: $catatan', maxLines: 3, overflow: TextOverflow.ellipsis),
                                           ],
                                         ],
                                       ),

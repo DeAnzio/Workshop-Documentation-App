@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -248,6 +250,61 @@ class BackendService {
     await prefs.setInt(_sessionExpiryKey, expiry.millisecondsSinceEpoch);
   }
 
+  static String get _aesSecretKey {
+    final secret = dotenv.env['AES_SECRET_KEY']?.trim() ?? '';
+    if (secret.isEmpty) {
+      return 'anzioworkshopapp_default_aes_secret_key_32';
+    }
+    return secret;
+  }
+
+  static encrypt.Key get _aesKey {
+    final keyBytes = sha256.convert(utf8.encode(_aesSecretKey)).bytes;
+    return encrypt.Key(Uint8List.fromList(keyBytes));
+  }
+
+  static String _encryptValue(String value) {
+    final iv = encrypt.IV.fromSecureRandom(16);
+    final encrypter = encrypt.Encrypter(
+      encrypt.AES(_aesKey, mode: encrypt.AESMode.cbc, padding: 'PKCS7'),
+    );
+    final encrypted = encrypter.encrypt(value, iv: iv);
+    return base64.encode(iv.bytes + encrypted.bytes);
+  }
+
+  static String _decryptValue(String encryptedValue) {
+    final bytes = base64.decode(encryptedValue);
+    final iv = encrypt.IV(Uint8List.fromList(bytes.sublist(0, 16)));
+    final cipherText = encrypt.Encrypted(Uint8List.fromList(bytes.sublist(16)));
+    final encrypter = encrypt.Encrypter(
+      encrypt.AES(_aesKey, mode: encrypt.AESMode.cbc, padding: 'PKCS7'),
+    );
+    return encrypter.decrypt(cipherText, iv: iv);
+  }
+
+  static Future<String> get databasePath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return p.join(directory.path, 'anzioworkshopapp.db');
+  }
+
+  static Future<File> exportDatabase({String? exportFileName}) async {
+    final sourcePath = await databasePath;
+    final sourceFile = File(sourcePath);
+    if (!await sourceFile.exists()) {
+      throw Exception('Database file tidak ditemukan');
+    }
+
+    final exportDirectory = Directory(
+      p.join((await getApplicationDocumentsDirectory()).path, 'exports'),
+    );
+    await exportDirectory.create(recursive: true);
+
+    final fileName = exportFileName ??
+        'exported_db_${DateTime.now().millisecondsSinceEpoch}.db';
+    final destinationPath = p.join(exportDirectory.path, fileName);
+    return sourceFile.copy(destinationPath);
+  }
+
   /// Check whether the current session is still valid
   static Future<bool> get isSessionValid async {
     final expiry = await _sessionExpiry;
@@ -331,7 +388,7 @@ class BackendService {
     return true;
   }
 
-  /// Register new technician with manual password hashing
+  /// Register new technician with AES-256 encrypted password
   /// Returns true when registration succeeded
   static Future<bool> createTechnician(
     String name,
@@ -356,11 +413,11 @@ class BackendService {
         return false;
       }
 
-      final hashedPassword = _hashValue(password);
+      final encryptedPassword = _encryptValue(password);
       await db.insert('technicians', {
         'name': name,
         'email': email.toLowerCase(),
-        'password': hashedPassword,
+        'password': encryptedPassword,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       });
@@ -371,7 +428,7 @@ class BackendService {
     }
   }
 
-  /// Manual login - hash password and verify against local SQLite database
+  /// Manual login - decrypt password and verify against local SQLite database
   /// Returns true when login succeeded
   static Future<bool> signIn(String email, String password) async {
     if (email.isEmpty || password.isEmpty) {
@@ -393,8 +450,13 @@ class BackendService {
       }
 
       final technician = rows.first;
-      final hashedPassword = _hashValue(password);
-      if (technician['password'] != hashedPassword) {
+      final storedPassword = technician['password'] as String?;
+      if (storedPassword == null || storedPassword.isEmpty) {
+        print('Login failed: stored password missing');
+        return false;
+      }
+      final decryptedPassword = _decryptValue(storedPassword);
+      if (decryptedPassword != password) {
         print('Login failed: invalid password');
         return false;
       }
@@ -592,7 +654,7 @@ class BackendService {
         'serial_number': serialNumber,
         'kondisi_fisik': kondisiFisik,
         'kelengkapan': kelengkapan,
-        'password_pin': passwordPin,
+        'password_pin': _encryptValue(passwordPin),
         'keluhan': keluhan,
         'diagnosa': null,
         'jenis_service': jenisService,
@@ -1084,10 +1146,10 @@ class BackendService {
 
   static Future<bool> saveTechnicianPin(String technicianId, String pin) async {
     try {
-      final pinHash = _hashPin(pin);
+      final encryptedPin = _encryptValue(pin);
       final success = await _updateTechnicianPinState(
         technicianId,
-        pinHash: pinHash,
+        pinHash: encryptedPin,
         pinAttempts: 0,
         clearPinAttempts: true,
         clearPinLockedUntil: true,
@@ -1204,13 +1266,13 @@ class BackendService {
         return false;
       }
 
-      final storedHash = await getTechnicianPinHash(technicianId);
-      if (storedHash == null || storedHash.isEmpty) {
+      final storedPin = await getTechnicianPinHash(technicianId);
+      if (storedPin == null || storedPin.isEmpty) {
         return false;
       }
 
-      final pinHash = _hashPin(pin);
-      final isValid = storedHash == pinHash;
+      final decryptedPin = _decryptValue(storedPin);
+      final isValid = decryptedPin == pin;
       if (isValid) {
         await _resetPinAttempts(technicianId);
         return true;

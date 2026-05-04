@@ -282,7 +282,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                   ),
                   child: Icon(
                     _faceIdAvailable ? Icons.face_retouching_natural : Icons.fingerprint,
-                    color: const Color(0xFF1E4DB7),
+                    color: const Color(0xFF111C30),
                     size: 28,
                   ),
                 );
@@ -300,14 +300,14 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                 child: key == '<'
                     ? const Icon(
                         Icons.backspace_outlined,
-                        color: Color(0xFF1E4DB7),
+                        color: const Color(0xFF111C30),
                       )
                     : Text(
                         key,
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E4DB7),
+                          color: const Color(0xFF111C30),
                         ),
                       ),
               );
@@ -323,7 +323,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
     return WillPopScope(
       onWillPop: () async => false, // Prevent back button
       child: Scaffold(
-        backgroundColor: const Color(0xFF1E4DB7),
+        backgroundColor: const Color(0xFF080E1A),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -333,7 +333,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                 const SizedBox(height: 24),
                 const Text(
                   'Your session has expired',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -362,7 +362,7 @@ class _SessionVerificationPageState extends State<SessionVerificationPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E4DB7),
+                    color: const Color(0xFF111C30),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
