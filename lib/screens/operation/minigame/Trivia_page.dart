@@ -1,6 +1,7 @@
 ﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class TriviaPage extends StatefulWidget {
@@ -42,9 +43,7 @@ class _TriviaPageState extends State<TriviaPage> {
     });
 
     try {
-      final uri = Uri.parse(
-        'https://opentdb.com/api.php?amount=10&category=18&encode=base64',
-      );
+      final uri = Uri.parse(_triviaApiUrl);
       final response = await http.get(uri);
       if (response.statusCode != 200) {
         throw Exception('HTTP ${response.statusCode}');
@@ -98,6 +97,9 @@ class _TriviaPageState extends State<TriviaPage> {
       return value;
     }
   }
+
+  String get _triviaApiUrl => dotenv.env['TRIVIA_API_URL']?.trim() ??
+      'https://opentdb.com/api.php?amount=10&category=18&encode=base64';
 
   void _selectAnswer(String answer) {
     if (_answered) return;

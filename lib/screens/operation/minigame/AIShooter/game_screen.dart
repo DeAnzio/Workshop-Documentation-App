@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'game_engine.dart';
+import 'game_models.dart';
 import 'game_painter.dart';
 import 'hud_overlay.dart';
 
@@ -20,12 +23,48 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   double _smoothedGyroX = 0.0;
   double _smoothedGyroY = 0.0;
 
+  ui.Image? _playerSprite;
+  final Map<EnemyType, ui.Image?> _enemySprites = {};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startLoop();
     _gyroSubscription = gyroscopeEvents.listen(_onGyroEvent);
+    _loadSprites();
+  }
+
+  Future<void> _loadSprites() async {
+    final spritePaths = <EnemyType, String>{
+      EnemyType.basic: 'assets/sprites/enemy_basic.png',
+      EnemyType.fast: 'assets/sprites/enemy_fast.png',
+      EnemyType.tank: 'assets/sprites/enemy_tank.png',
+      EnemyType.shooter: 'assets/sprites/enemy_shooter.png',
+    };
+
+    try {
+      _playerSprite = await _loadImage('assets/sprites/player.png');
+    } catch (_) {
+      _playerSprite = null;
+    }
+
+    await Future.wait(spritePaths.entries.map((entry) async {
+      try {
+        _enemySprites[entry.key] = await _loadImage(entry.value);
+      } catch (_) {
+        _enemySprites[entry.key] = null;
+      }
+    }));
+
+    if (mounted) setState(() {});
+  }
+
+  Future<ui.Image> _loadImage(String assetPath) async {
+    final data = await rootBundle.load(assetPath);
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    return frame.image;
   }
 
   void _startLoop() {
@@ -97,7 +136,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 children: [
                   // Game canvas
                   CustomPaint(
-                    painter: GamePainter(_engine),
+                    painter: GamePainter(
+                      _engine,
+                      playerSprite: _playerSprite,
+                      enemySprites: _enemySprites,
+                    ),
                     size: Size(w, h),
                     child: const SizedBox.expand(),
                   ),

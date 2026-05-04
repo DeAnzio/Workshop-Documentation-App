@@ -82,6 +82,11 @@ flutter:
 
   assets:
     - .env
+    - assets/sprites/player.png
+    - assets/sprites/enemy_basic.png
+    - assets/sprites/enemy_fast.png
+    - assets/sprites/enemy_tank.png
+    - assets/sprites/enemy_shooter.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -6,7 +6,14 @@ import 'game_models.dart';
 
 class GamePainter extends CustomPainter {
   final GameEngine engine;
-  GamePainter(this.engine) : super(repaint: engine);
+  final ui.Image? playerSprite;
+  final Map<EnemyType, ui.Image?> enemySprites;
+
+  GamePainter(
+    this.engine, {
+    this.playerSprite,
+    required this.enemySprites,
+  }) : super(repaint: engine);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -76,18 +83,24 @@ class GamePainter extends CustomPainter {
     for (final e in engine.enemies) {
       canvas.save();
       canvas.translate(e.pos.x, e.pos.y);
-      _drawAILogo(canvas, e);
+      final sprite = enemySprites[e.type];
+      final glow = Paint()
+        ..color = e.color.withOpacity(0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
+      canvas.drawCircle(Offset.zero, e.width * 0.55, glow);
+
+      if (sprite != null) {
+        _drawSprite(canvas, sprite, e.width, e.height);
+      } else {
+        _drawAILogo(canvas, e);
+      }
+
       _drawHealthBar(canvas, e);
       canvas.restore();
     }
   }
 
   void _drawAILogo(Canvas canvas, Enemy e) {
-    final glow = Paint()
-      ..color = e.color.withOpacity(0.35)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
-    canvas.drawCircle(Offset.zero, e.width * 0.55, glow);
-
     switch (e.type) {
       case EnemyType.basic:
         _drawChatGPTLogo(canvas, e.width * 0.46, e.color);
@@ -276,6 +289,12 @@ class GamePainter extends CustomPainter {
     canvas.save();
     canvas.translate(p.pos.x, p.pos.y);
 
+    if (playerSprite != null) {
+      _drawSprite(canvas, playerSprite!, p.width, p.height);
+      canvas.restore();
+      return;
+    }
+
     // ── Thruster flames (bottom) ─────────────
     final flameTime = DateTime.now().millisecondsSinceEpoch / 80.0;
     final flicker = 0.85 + 0.15 * sin(flameTime);
@@ -388,6 +407,12 @@ class GamePainter extends CustomPainter {
     canvas.drawOval(Rect.fromCenter(center: const Offset(-18, -12), width: 5, height: 5), notchPaint);
 
     canvas.restore();
+  }
+
+  void _drawSprite(Canvas canvas, ui.Image sprite, double width, double height) {
+    final src = Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble());
+    final dst = Rect.fromCenter(center: Offset.zero, width: width, height: height);
+    canvas.drawImageRect(sprite, src, dst, Paint());
   }
 
   void _drawFlame(Canvas canvas, Offset origin, double flicker, Paint paint1, Paint paint2) {
