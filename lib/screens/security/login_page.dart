@@ -134,7 +134,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            'Anzio Workshop',
+                            'WorkBench',
                             style: TextStyle(
                               color: _textPrimary,
                               fontSize: 26,

@@ -8,7 +8,7 @@ import 'package:anzioworkshopapp/screens/security/session_verification_page.dart
 import 'package:anzioworkshopapp/screens/main/listtiket_page.dart';
 import 'package:anzioworkshopapp/screens/main/sps_page.dart';
 import 'package:anzioworkshopapp/screens/main/kesanpesan_page.dart';
-import 'package:anzioworkshopapp/screens/operation/askme_page.dart';
+import 'package:anzioworkshopapp/screens/main/askmenu_page.dart';
 import 'package:anzioworkshopapp/screens/operation/inputtiket_page.dart';
 import 'package:anzioworkshopapp/screens/operation/minigame/Trivia_page.dart';
 import 'package:anzioworkshopapp/screens/operation/minigame/AIShooter/game_screen.dart';
@@ -131,7 +131,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         '/verify': (context) => const SessionVerificationPage(),
         '/list-tiket': (context) => const ListTiketPage(),
         '/sps-locator': (context) => const SpsPage(),
-        '/askme': (context) => const AskMe(),
+        '/askme': (context) => const AskMenu(),
         '/input-tiket': (context) => const Inputdata(),
         '/kesan-pesan': (context) => const KesanPesanPage(),
         '/minigame': (context) => const MiniGamePage(),

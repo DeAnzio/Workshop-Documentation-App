@@ -6,6 +6,7 @@ import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -294,15 +295,43 @@ class BackendService {
       throw Exception('Database file tidak ditemukan');
     }
 
-    final exportDirectory = Directory(
-      p.join((await getApplicationDocumentsDirectory()).path, 'exports'),
-    );
+    final exportDirectory = await _resolveExportDirectory();
     await exportDirectory.create(recursive: true);
 
     final fileName = exportFileName ??
         'exported_db_${DateTime.now().millisecondsSinceEpoch}.db';
     final destinationPath = p.join(exportDirectory.path, fileName);
     return sourceFile.copy(destinationPath);
+  }
+
+  static Future<Directory> _resolveExportDirectory() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.storage.request();
+      if (!status.isGranted && !status.isLimited) {
+        throw Exception('Izin penyimpanan diperlukan untuk mengekspor database');
+      }
+
+      final defaultDownload = Directory('/storage/emulated/0/Download/AnzioWorkshopApp');
+      if (await defaultDownload.exists()) {
+        return defaultDownload;
+      }
+
+      try {
+        await defaultDownload.create(recursive: true);
+        return defaultDownload;
+      } catch (_) {
+        final external = await getExternalStorageDirectory();
+        if (external != null) {
+          final fallback = Directory(p.join(external.path, 'Download', 'AnzioWorkshopApp'));
+          await fallback.create(recursive: true);
+          return fallback;
+        }
+      }
+    }
+
+    return Directory(
+      p.join((await getApplicationDocumentsDirectory()).path, 'exports'),
+    );
   }
 
   /// Check whether the current session is still valid
