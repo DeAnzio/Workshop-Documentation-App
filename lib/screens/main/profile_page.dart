@@ -293,7 +293,7 @@ class _ProfilePageState extends State<ProfilePage> {
           'Profile',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF080E1A),
+        backgroundColor: const Color.fromARGB(255, 63, 199, 36),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -371,6 +371,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
+                        
                         child: _statsLoading
                             ? const Center(child: CircularProgressIndicator())
                             : Column(
@@ -406,6 +407,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                             ),
                                           ),
                                         ],
+                                      
                                       ),
                                       Column(
                                         children: [

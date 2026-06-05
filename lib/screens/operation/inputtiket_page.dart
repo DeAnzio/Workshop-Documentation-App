@@ -572,9 +572,43 @@ class _InputDataPelangganState extends State<InputDataPelanggan> {
 
       if (serviceOrderId == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Gagal menyimpan data')));
+        // Show detailed error dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Gagal Menyimpan Data'),
+            content: const SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Terjadi kesalahan saat menyimpan data service order.'),
+                  SizedBox(height: 12),
+                  Text('Hal-hal yang perlu dicek:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  SizedBox(height: 8),
+                  Text('1. Pastikan semua field yang wajib sudah diisi:'),
+                  Text('   - Nama pelanggan'),
+                  Text('   - Nomor HP'),
+                  Text('   - Jenis perangkat'),
+                  Text('   - Merek/model'),
+                  Text('   - Keluhan'),
+                  SizedBox(height: 8),
+                  Text('2. Nomor HP mungkin sudah terdaftar di sistem'),
+                  SizedBox(height: 8),
+                  Text('3. Coba buka Console/Logcat untuk error detail'),
+                  Text('   (Developer > Show Debug Console)'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
         return;
       }
 

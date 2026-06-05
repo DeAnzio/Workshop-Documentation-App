@@ -626,8 +626,19 @@ class BackendService {
     String? alamat,
   }) async {
     try {
+      // Validate input
+      if (nama.trim().isEmpty) {
+        print('Create customer failed: Nama pelanggan tidak boleh kosong');
+        return null;
+      }
+      if (noHp.trim().isEmpty) {
+        print('Create customer failed: Nomor HP tidak boleh kosong');
+        return null;
+      }
+
       final existing = await fetchCustomerByPhone(noHp);
       if (existing != null) {
+        print('Create customer: Customer dengan nomor HP $noHp sudah ada (ID: ${existing['id']})');
         return existing['id']?.toString();
       }
 
@@ -639,9 +650,10 @@ class BackendService {
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       });
+      print('Create customer success: Customer baru dibuat (ID: $id, NoHP: $noHp)');
       return id.toString();
     } catch (e) {
-      print('Create customer failed: $e');
+      print('Create customer failed: Error inserting customer - $e');
       return null;
     }
   }
@@ -672,12 +684,48 @@ class BackendService {
     String currency = 'IDR',
   }) async {
     try {
+      // Validate required fields
+      if (customerId.trim().isEmpty) {
+        print('Insert service order failed: Customer ID tidak boleh kosong');
+        return null;
+      }
+      if (technicianId.trim().isEmpty) {
+        print('Insert service order failed: Technician ID tidak boleh kosong');
+        return null;
+      }
+      if (jenisDevice.trim().isEmpty) {
+        print('Insert service order failed: Jenis perangkat tidak boleh kosong');
+        return null;
+      }
+      if (merekModel.trim().isEmpty) {
+        print('Insert service order failed: Merek/model tidak boleh kosong');
+        return null;
+      }
+      if (keluhan.trim().isEmpty) {
+        print('Insert service order failed: Keluhan tidak boleh kosong');
+        return null;
+      }
+
       final db = await _openDatabase();
       final ticket = _generateTicketNumber();
+      
+      // Try to parse IDs, default to 0 if parsing fails
+      final parsedCustomerId = int.tryParse(customerId) ?? 0;
+      final parsedTechnicianId = int.tryParse(technicianId) ?? 0;
+      
+      if (parsedCustomerId == 0) {
+        print('Insert service order failed: Customer ID tidak valid: $customerId');
+        return null;
+      }
+      if (parsedTechnicianId == 0) {
+        print('Insert service order failed: Technician ID tidak valid: $technicianId');
+        return null;
+      }
+
       final id = await db.insert('service_orders', {
         'nomor_tiket': ticket,
-        'customer_id': int.tryParse(customerId) ?? 0,
-        'technician_id': int.tryParse(technicianId) ?? 0,
+        'customer_id': parsedCustomerId,
+        'technician_id': parsedTechnicianId,
         'jenis_perangkat': jenisDevice,
         'merek_model': merekModel,
         'serial_number': serialNumber,
@@ -697,9 +745,10 @@ class BackendService {
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       });
+      print('Insert service order success: Service order baru dibuat (ID: $id, Ticket: $ticket)');
       return id.toString();
     } catch (e) {
-      print('Insert service order failed: $e');
+      print('Insert service order failed: Error inserting service order - $e');
       return null;
     }
   }
@@ -724,13 +773,39 @@ class BackendService {
     String currency = 'IDR',
   }) async {
     try {
+      // Validate input
+      if (namaPelanggan.trim().isEmpty) {
+        print('Insert customer data failed: Nama pelanggan tidak boleh kosong');
+        return null;
+      }
+      if (noHp.trim().isEmpty) {
+        print('Insert customer data failed: Nomor HP tidak boleh kosong');
+        return null;
+      }
+      if (jenisDevice.trim().isEmpty) {
+        print('Insert customer data failed: Jenis perangkat tidak boleh kosong');
+        return null;
+      }
+      if (merekModel.trim().isEmpty) {
+        print('Insert customer data failed: Merek/model tidak boleh kosong');
+        return null;
+      }
+      if (keluhan.trim().isEmpty) {
+        print('Insert customer data failed: Keluhan tidak boleh kosong');
+        return null;
+      }
+      if (technicianId.trim().isEmpty) {
+        print('Insert customer data failed: Technician ID tidak boleh kosong');
+        return null;
+      }
+
       final customerId = await createCustomer(
         namaPelanggan,
         noHp,
         alamat: alamat,
       );
       if (customerId == null) {
-        print('Insert customer data failed: unable to create customer');
+        print('Insert customer data failed: Gagal membuat/mengambil data customer dengan nomor HP $noHp');
         return null;
       }
 
@@ -752,11 +827,13 @@ class BackendService {
       );
 
       if (serviceOrderId == null) {
-        print('Insert customer data failed: unable to create service order');
+        print('Insert customer data failed: Gagal membuat service order untuk customer $customerId');
+      } else {
+        print('Insert customer data success: Data customer dan service order berhasil disimpan');
       }
       return serviceOrderId;
     } catch (e) {
-      print('Insert customer data failed: $e');
+      print('Insert customer data failed: Unexpected error - $e');
       return null;
     }
   }

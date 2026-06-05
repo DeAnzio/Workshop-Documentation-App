@@ -12,6 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:anzioworkshopapp/services/backend_service.dart';
 import 'package:anzioworkshopapp/services/currency_service.dart';
+import 'package:anzioworkshopapp/services/timezone_service.dart';
 
 class PrintNotaPage extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -29,12 +30,21 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
   String? _errorMessage;
   List<Map<String, dynamic>> _spareparts = [];
   double _sparepartTotal = 0.0;
+  
+  // Technician preferences
+  String _preferredCurrency = 'IDR';
+  String _preferredTimezone = 'WIB';
+  
+  // Converted values for display
+  double _convertedEstimasi = 0.0;
+  double _convertedBiayaAkhir = 0.0;
+  double _convertedSparepartTotal = 0.0;
 
   @override
   void initState() {
     super.initState();
     _initializeNotifications();
-    _loadSpareparts();
+    _loadDetailsWithPreferences();
   }
 
   Future<void> _initializeNotifications() async {
@@ -48,16 +58,47 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
     );
   }
 
-  Future<void> _loadSpareparts() async {
+  Future<void> _loadDetailsWithPreferences() async {
     setState(() {
       _loadingDetails = true;
       _errorMessage = null;
     });
 
     try {
+      // Load technician preferences
+      final technicianId = await BackendService.getCurrentTechnicianId();
+      if (technicianId != null) {
+        final technicianData = await BackendService.fetchTechnicianById(technicianId);
+        if (technicianData != null) {
+          _preferredCurrency = technicianData['currency']?.toString() ?? 'IDR';
+          _preferredTimezone = technicianData['preferred_time']?.toString() ?? 'WIB';
+        }
+      }
+
+      // Load spare parts
       final orderId = widget.order['id']?.toString() ?? '';
-      final parts = await BackendService.fetchServiceSpareparts(orderId);
-      final total = await BackendService.fetchServiceSparepartsTotal(orderId);
+      var parts = await BackendService.fetchServiceSpareparts(orderId);
+      var total = await BackendService.fetchServiceSparepartsTotal(orderId);
+      
+      // Convert values to preferred currency
+      final orderCurrency = widget.order['currency']?.toString() ?? 'IDR';
+      final estimasiBiaya = (widget.order['estimasi_biaya'] is num)
+          ? (widget.order['estimasi_biaya'] as num).toDouble()
+          : 0.0;
+      final biayaAkhir = (widget.order['biaya_akhir'] is num)
+          ? (widget.order['biaya_akhir'] as num).toDouble()
+          : 0.0;
+
+      _convertedEstimasi = await _convertCurrencyIfNeeded(estimasiBiaya, orderCurrency);
+      _convertedBiayaAkhir = await _convertCurrencyIfNeeded(biayaAkhir, orderCurrency);
+      _convertedSparepartTotal = await _convertCurrencyIfNeeded(total, orderCurrency);
+      
+      // Convert spare parts pricing to preferred currency
+      for (var part in parts) {
+        final harga = (part['harga'] is num) ? (part['harga'] as num).toDouble() : 0.0;
+        part['harga_converted'] = await _convertCurrencyIfNeeded(harga, orderCurrency);
+      }
+      
       if (!mounted) return;
       setState(() {
         _spareparts = parts;
@@ -154,15 +195,35 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
     );
   }
 
-  String _formatDateTime(String? rawValue) {
+  String _formatDateTime(String? rawValue, {String timezone = 'WIB'}) {
     if (rawValue == null || rawValue.isEmpty) return '-';
     final parsed = DateTime.tryParse(rawValue);
     if (parsed == null) return rawValue;
-    return '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+    
+    // Convert to technician's preferred timezone
+    try {
+      final convertedTime = TimeZoneService.convertToZone(timezone, parsed);
+      return '${convertedTime.day.toString().padLeft(2, '0')}/${convertedTime.month.toString().padLeft(2, '0')}/${convertedTime.year} ${convertedTime.hour.toString().padLeft(2, '0')}:${convertedTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      // Fallback if timezone conversion fails
+      return '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   String _formatCurrency(double value, String currencyCode) {
     return CurrencyService.formatCurrency(value, currencyCode);
+  }
+
+  Future<double> _convertCurrencyIfNeeded(double value, String sourceCurrency) async {
+    if (sourceCurrency == _preferredCurrency) {
+      return value;
+    }
+    try {
+      return await CurrencyService.convertCurrency(value, sourceCurrency, _preferredCurrency);
+    } catch (e) {
+      debugPrint('Currency conversion error: $e');
+      return value;
+    }
   }
 
   pw.Widget _buildOrderDetails() {
@@ -177,7 +238,7 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
     final diagnosa = widget.order['diagnosa']?.toString() ?? '-';
     final jenisService = widget.order['jenis_service']?.toString() ?? '-';
     final statusService = widget.order['status_service']?.toString() ?? '-';
-    final tanggal = _formatDateTime(widget.order['tgl_masuk']?.toString());
+    final tanggal = _formatDateTime(widget.order['tgl_masuk']?.toString(), timezone: _preferredTimezone);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -204,7 +265,7 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
     );
   }
 
-  pw.Widget _buildSparepartSection(String currencyCode) {
+  pw.Widget _buildSparepartSection(String orderCurrency) {
     if (_spareparts.isEmpty) {
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -225,14 +286,16 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
           headers: ['Nama', 'Kode', 'Qty', 'Harga', 'Total'],
           data: _spareparts.map((part) {
             final qty = part['qty'] ?? 0;
-            final harga = (part['harga'] is num) ? (part['harga'] as num).toDouble() : 0.0;
-            final total = (qty is num ? qty.toInt() : 0) * harga;
+            final hargaConverted = (part['harga_converted'] is num) 
+                ? (part['harga_converted'] as num).toDouble() 
+                : 0.0;
+            final total = (qty is num ? qty.toInt() : 0) * hargaConverted;
             return [
               part['nama']?.toString() ?? '-',
               part['kode']?.toString() ?? '-',
               qty.toString(),
-              _formatCurrency(harga, currencyCode),
-              _formatCurrency(total, currencyCode),
+              _formatCurrency(hargaConverted, _preferredCurrency),
+              _formatCurrency(total, _preferredCurrency),
             ];
           }).toList(),
           border: pw.TableBorder.all(width: 0.5),
@@ -244,7 +307,7 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.end,
           children: [
-            pw.Text('Total Sparepart: ${_formatCurrency(_sparepartTotal, currencyCode)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Total Sparepart: ${_formatCurrency(_convertedSparepartTotal, _preferredCurrency)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
           ],
         ),
       ],
@@ -253,13 +316,7 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
 
   Future<Uint8List> _generatePdfBytes(PdfPageFormat format) async {
     final pdf = pw.Document();
-    final currencyCode = widget.order['currency']?.toString() ?? 'IDR';
-    final estimasiBiaya = (widget.order['estimasi_biaya'] is num)
-        ? (widget.order['estimasi_biaya'] as num).toDouble()
-        : 0.0;
-    final biayaAkhir = (widget.order['biaya_akhir'] is num)
-        ? (widget.order['biaya_akhir'] as num).toDouble()
-        : 0.0;
+    final orderCurrency = widget.order['currency']?.toString() ?? 'IDR';
 
     pdf.addPage(
       pw.MultiPage(
@@ -268,7 +325,7 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
         build: (context) {
           return [
             _buildOrderDetails(),
-            _buildSparepartSection(currencyCode),
+            _buildSparepartSection(orderCurrency),
             pw.SizedBox(height: 12),
             pw.Divider(),
             pw.SizedBox(height: 8),
@@ -276,14 +333,14 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('Estimasi Biaya:'),
-                pw.Text(_formatCurrency(estimasiBiaya, currencyCode)),
+                pw.Text(_formatCurrency(_convertedEstimasi, _preferredCurrency)),
               ],
             ),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('Biaya Akhir:'),
-                pw.Text(_formatCurrency(biayaAkhir, currencyCode)),
+                pw.Text(_formatCurrency(_convertedBiayaAkhir, _preferredCurrency)),
               ],
             ),
             pw.Row(
@@ -291,7 +348,7 @@ class _PrintNotaPageState extends State<PrintNotaPage> {
               children: [
                 pw.Text('Total Nota:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 pw.Text(
-                  _formatCurrency(_sparepartTotal + biayaAkhir, currencyCode),
+                  _formatCurrency(_convertedSparepartTotal + _convertedBiayaAkhir, _preferredCurrency),
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
               ],
